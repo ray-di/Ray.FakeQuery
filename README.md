@@ -72,8 +72,9 @@ var/fake/
 └── todo_add           (void → no file needed)
 ```
 
+`var/fake/todo_item.json` (single JSON object):
+
 ```json
-// var/fake/todo_item.json  — single JSON object
 {
     "todoId": "01HVXXXXXX0008",
     "todoTitle": "Buy groceries",
@@ -83,8 +84,9 @@ var/fake/
 }
 ```
 
+`var/fake/todo_list.jsonl` (one JSON object per line):
+
 ```jsonl
-// var/fake/todo_list.jsonl  — one JSON object per line
 {"todoId": "01HVXXXXXX0008", "todoTitle": "Buy groceries", "isCompleted": false, "createdAt": "2026-03-02T08:00:00+09:00"}
 {"todoId": "01HVXXXXXX0007", "todoTitle": "Call dentist", "isCompleted": true, "createdAt": "2026-03-01T10:30:00+09:00"}
 ```

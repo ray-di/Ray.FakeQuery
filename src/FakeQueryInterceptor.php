@@ -24,6 +24,8 @@ use function file_get_contents;
 use function json_decode;
 use function trim;
 
+use const JSON_THROW_ON_ERROR;
+
 /** @psalm-import-type JsonRowList from Types */
 final class FakeQueryInterceptor implements MethodInterceptor
 {
@@ -62,10 +64,14 @@ final class FakeQueryInterceptor implements MethodInterceptor
             throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
         }
 
-        $content = (string) file_get_contents($jsonFile);
+        $content = file_get_contents($jsonFile);
+        if ($content === false) {
+            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
+        }
+
         /** @psalm-suppress MixedAssignment */
         $data = $isRow
-            ? json_decode($content, true)
+            ? json_decode($content, true, 512, JSON_THROW_ON_ERROR)
             : $this->parseJsonl($content);
 
         $entityClass = ($this->returnEntity)($method);
@@ -83,7 +89,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
         /** @var JsonRowList $result */
         $result = array_map(
-            static fn (string $line): mixed => json_decode($line, true),
+            static fn (string $line): mixed => json_decode($line, true, 512, JSON_THROW_ON_ERROR),
             $lines,
         );
 
