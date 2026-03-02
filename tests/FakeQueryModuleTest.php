@@ -8,15 +8,18 @@ use PHPUnit\Framework\TestCase;
 use Ray\Di\AbstractModule;
 use Ray\Di\Injector;
 use Ray\FakeQuery\Entity\TodoEntity;
+use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
+use Ray\FakeQuery\Query\UserQueryInterface;
 
 final class FakeQueryModuleTest extends TestCase
 {
     private TodoQueryInterface $query;
     private TodoCommandInterface $command;
+    private UserQueryInterface $userQuery;
 
     protected function setUp(): void
     {
@@ -44,6 +47,10 @@ final class FakeQueryModuleTest extends TestCase
         /** @var TodoCommandInterface $command */
         $command = $injector->getInstance(TodoCommandInterface::class);
         $this->command = $command;
+
+        /** @var UserQueryInterface $userQuery */
+        $userQuery = $injector->getInstance(UserQueryInterface::class);
+        $this->userQuery = $userQuery;
     }
 
     public function testItemReturnsEntity(): void
@@ -77,6 +84,46 @@ final class FakeQueryModuleTest extends TestCase
     {
         $this->command->add('01HVXXXXXX0008', 'test');
         $this->addToAssertionCount(1);
+    }
+
+    public function testConstructorHydrationWithCamelCaseAndDefault(): void
+    {
+        $user = $this->userQuery->item('u001');
+
+        $this->assertInstanceOf(UserEntity::class, $user);
+        $this->assertSame('u001', $user->userId);
+        $this->assertSame('Alice', $user->userName);
+        $this->assertTrue($user->isActive);
+    }
+
+    public function testConstructorHydrationList(): void
+    {
+        $list = $this->userQuery->list();
+
+        $this->assertCount(2, $list);
+        $this->assertContainsOnlyInstancesOf(UserEntity::class, $list);
+        $this->assertSame('Bob', $list[1]->userName);
+        $this->assertFalse($list[1]->isActive);
+    }
+
+    public function testUnionNullableWithMissingFileReturnsNull(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    '/nonexistent/dir',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var UserQueryInterface $query */
+        $query = $injector->getInstance(UserQueryInterface::class);
+
+        $result = $query->item('1');
+
+        $this->assertNull($result);
     }
 
     public function testNullableWithMissingFileReturnsNull(): void

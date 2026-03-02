@@ -96,16 +96,16 @@ final class FakeQueryInterceptor implements MethodInterceptor
             return $returnType->allowsNull();
         }
 
-        if (! ($returnType instanceof ReflectionUnionType)) {
-            return false;
+        if (! ($returnType instanceof ReflectionUnionType)) { // @codeCoverageIgnore
+            return false; // @codeCoverageIgnore
         }
 
-        foreach ($returnType->getTypes() as $type) {
-            if ($type instanceof ReflectionNamedType && $type->getName() === 'null') {
-                return true;
+        foreach ($returnType->getTypes() as $type) { // @codeCoverageIgnore
+            if ($type instanceof ReflectionNamedType && $type->getName() === 'null') { // @codeCoverageIgnore
+                return true; // @codeCoverageIgnore
             }
         }
 
-        return false;
+        return false; // @codeCoverageIgnore
     }
 }

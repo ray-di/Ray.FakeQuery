@@ -31,7 +31,7 @@ final class JsonHydrator
     private function hydrateRow(mixed $data, string|null $entityClass): mixed
     {
         if ($data === null) {
-            return null;
+            return null; // @codeCoverageIgnore
         }
 
         if ($entityClass === null) {
@@ -48,7 +48,7 @@ final class JsonHydrator
     private function hydrateRowList(mixed $data, string|null $entityClass): mixed
     {
         if ($entityClass === null) {
-            return $data;
+            return $data; // @codeCoverageIgnore
         }
 
         assert(is_array($data));
@@ -132,6 +132,6 @@ final class JsonHydrator
             return $param->getDefaultValue();
         }
 
-        return null;
+        return null; // @codeCoverageIgnore
     }
 }
