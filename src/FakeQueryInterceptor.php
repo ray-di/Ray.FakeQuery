@@ -96,6 +96,8 @@ final class FakeQueryInterceptor implements MethodInterceptor
             return $returnType->allowsNull();
         }
 
+        // Ray.Di normalizes `Entity|null` to `?Entity` (ReflectionNamedType),
+        // so ReflectionUnionType is unreachable in practice. Verified via xtrace.
         if (! ($returnType instanceof ReflectionUnionType)) { // @codeCoverageIgnore
             return false; // @codeCoverageIgnore
         }

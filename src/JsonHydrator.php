@@ -31,7 +31,7 @@ final class JsonHydrator
     private function hydrateRow(mixed $data, string|null $entityClass): mixed
     {
         if ($data === null) {
-            return null; // @codeCoverageIgnore
+            return null; // @codeCoverageIgnore json_decode returns null only for "null" content
         }
 
         if ($entityClass === null) {
@@ -48,7 +48,7 @@ final class JsonHydrator
     private function hydrateRowList(mixed $data, string|null $entityClass): mixed
     {
         if ($entityClass === null) {
-            return $data; // @codeCoverageIgnore
+            return $data; // @codeCoverageIgnore ReturnEntity always resolves entity for @return array<Entity>
         }
 
         assert(is_array($data));
@@ -132,6 +132,6 @@ final class JsonHydrator
             return $param->getDefaultValue();
         }
 
-        return null; // @codeCoverageIgnore
+        return null; // @codeCoverageIgnore all constructor params should match JSON keys or be optional
     }
 }
