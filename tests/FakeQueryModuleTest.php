@@ -9,6 +9,7 @@ use Ray\Di\AbstractModule;
 use Ray\Di\Injector;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
 
@@ -51,11 +52,11 @@ final class FakeQueryModuleTest extends TestCase
 
         $this->assertInstanceOf(TodoEntity::class, $todo);
         $this->assertSame('01HVXXXXXX0008', $todo->todoId);
-        $this->assertSame('Beフレームワークのチュートリアルを書く', $todo->todoTitle);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
         $this->assertFalse($todo->isCompleted);
     }
 
-    public function testListReturnsEntityArray(): void
+    public function testListReturnsEntityArrayFromJsonl(): void
     {
         $list = $this->query->list();
 
@@ -78,10 +79,30 @@ final class FakeQueryModuleTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function testMissingJsonThrowsException(): void
+    public function testNullableWithMissingFileReturnsNull(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    '/nonexistent/dir',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+
+        $result = $query->item('1');
+
+        $this->assertNull($result);
+    }
+
+    public function testNonNullableWithMissingFileThrows(): void
     {
         $this->expectException(FakeJsonNotFoundException::class);
-        $this->expectExceptionMessage('todo_item.json');
+        $this->expectExceptionMessage('todo_list.jsonl');
 
         $injector = new Injector(new class extends AbstractModule {
             protected function configure(): void
@@ -95,6 +116,22 @@ final class FakeQueryModuleTest extends TestCase
 
         /** @var TodoQueryInterface $query */
         $query = $injector->getInstance(TodoQueryInterface::class);
-        $query->item('1');
+        $query->list();
+    }
+
+    public function testUnknownFakeJsonFileThrows(): void
+    {
+        $this->expectException(UnknownFakeJsonException::class);
+        $this->expectExceptionMessage('stray_query.json');
+
+        new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeUnknown',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
     }
 }

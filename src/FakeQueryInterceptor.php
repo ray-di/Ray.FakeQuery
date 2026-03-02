@@ -11,13 +11,20 @@ use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\MediaQuery\Annotation\DbQuery;
 use Ray\MediaQuery\ReturnEntityInterface;
 use ReflectionNamedType;
+use ReflectionType;
 use ReflectionUnionType;
 
+use function array_filter;
+use function array_map;
+use function array_values;
 use function assert;
+use function explode;
 use function file_exists;
 use function file_get_contents;
 use function json_decode;
+use function trim;
 
+/** @psalm-import-type JsonRowList from Types */
 final class FakeQueryInterceptor implements MethodInterceptor
 {
     public function __construct(
@@ -44,15 +51,61 @@ final class FakeQueryInterceptor implements MethodInterceptor
             || $returnType instanceof ReflectionUnionType
             || ($returnType instanceof ReflectionNamedType && $returnType->getName() !== 'array');
 
-        $jsonFile = $this->config->fakeDir . '/' . $dbQuery->id . '.json';
+        $ext = $isRow ? '.json' : '.jsonl';
+        $jsonFile = $this->config->fakeDir . '/' . $dbQuery->id . $ext;
+
         if (! file_exists($jsonFile)) {
-            throw new FakeJsonNotFoundException($dbQuery->id, $this->config->fakeDir);
+            if ($this->isNullable($returnType)) {
+                return null;
+            }
+
+            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
         }
 
+        $content = (string) file_get_contents($jsonFile);
         /** @psalm-suppress MixedAssignment */
-        $data = json_decode((string) file_get_contents($jsonFile), true);
+        $data = $isRow
+            ? json_decode($content, true)
+            : $this->parseJsonl($content);
+
         $entityClass = ($this->returnEntity)($method);
 
         return $this->hydrator->hydrate($data, $entityClass, $isRow);
+    }
+
+    /** @return JsonRowList */
+    private function parseJsonl(string $content): array
+    {
+        $lines = array_values(array_filter(
+            explode("\n", trim($content)),
+            static fn (string $line): bool => $line !== '',
+        ));
+
+        /** @var JsonRowList $result */
+        $result = array_map(
+            static fn (string $line): mixed => json_decode($line, true),
+            $lines,
+        );
+
+        return $result;
+    }
+
+    private function isNullable(ReflectionType|null $returnType): bool
+    {
+        if ($returnType instanceof ReflectionNamedType) {
+            return $returnType->allowsNull();
+        }
+
+        if (! ($returnType instanceof ReflectionUnionType)) {
+            return false;
+        }
+
+        foreach ($returnType->getTypes() as $type) {
+            if ($type instanceof ReflectionNamedType && $type->getName() === 'null') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

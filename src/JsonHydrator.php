@@ -6,6 +6,7 @@ namespace Ray\FakeQuery;
 
 use Ray\MediaQuery\StringCase;
 use ReflectionClass;
+use ReflectionParameter;
 
 use function array_key_exists;
 use function array_map;
@@ -13,6 +14,7 @@ use function assert;
 use function is_array;
 use function method_exists;
 
+/** @psalm-import-type JsonRow from Types */
 final class JsonHydrator
 {
     /** @param class-string|null $entityClass */
@@ -37,7 +39,7 @@ final class JsonHydrator
         }
 
         assert(is_array($data));
-        /** @var array<string, mixed> $data */
+        /** @var JsonRow $data */
 
         return $this->hydrateOne($data, $entityClass);
     }
@@ -54,7 +56,7 @@ final class JsonHydrator
         return array_map(
             function (mixed $row) use ($entityClass): object {
                 assert(is_array($row));
-                /** @var array<string, mixed> $row */
+                /** @var JsonRow $row */
 
                 return $this->hydrateOne($row, $entityClass);
             },
@@ -63,8 +65,8 @@ final class JsonHydrator
     }
 
     /**
-     * @param array<string, mixed> $row
-     * @param class-string         $entityClass
+     * @param JsonRow      $row
+     * @param class-string $entityClass
      */
     private function hydrateOne(array $row, string $entityClass): object
     {
@@ -79,7 +81,7 @@ final class JsonHydrator
 
     /**
      * @param ReflectionClass<object> $refClass
-     * @param array<string, mixed>    $row
+     * @param JsonRow                 $row
      */
     private function hydrateProperties(ReflectionClass $refClass, array $row): object
     {
@@ -97,7 +99,7 @@ final class JsonHydrator
 
     /**
      * @param ReflectionClass<object> $refClass
-     * @param array<string, mixed>    $row
+     * @param JsonRow                 $row
      */
     private function hydrateConstructor(ReflectionClass $refClass, array $row): object
     {
@@ -106,20 +108,30 @@ final class JsonHydrator
 
         $args = [];
         foreach ($constructor->getParameters() as $param) {
-            $name = $param->getName();
-            $snake = StringCase::snake($name);
             /** @psalm-suppress MixedAssignment */
-            if (array_key_exists($name, $row)) {
-                $args[] = $row[$name];
-            } elseif (array_key_exists($snake, $row)) {
-                $args[] = $row[$snake];
-            } elseif ($param->isOptional()) {
-                $args[] = $param->getDefaultValue();
-            } else {
-                $args[] = null;
-            }
+            $args[] = $this->resolveArgument($param, $row);
         }
 
         return $refClass->newInstance(...$args);
+    }
+
+    /** @param JsonRow $row */
+    private function resolveArgument(ReflectionParameter $param, array $row): mixed
+    {
+        $name = $param->getName();
+        if (array_key_exists($name, $row)) {
+            return $row[$name];
+        }
+
+        $snake = StringCase::snake($name);
+        if (array_key_exists($snake, $row)) {
+            return $row[$snake];
+        }
+
+        if ($param->isOptional()) {
+            return $param->getDefaultValue();
+        }
+
+        return null;
     }
 }

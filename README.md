@@ -67,39 +67,26 @@ Create JSON files matching the query ID:
 
 ```
 var/fake/
-├── todo_item.json
-├── todo_list.json
-├── todo_add.json      (void → empty or {})
-└── todo_complete.json
+├── todo_item.json      ← single entity (?Entity)
+├── todo_list.jsonl     ← collection (array<Entity>), JSON Lines
+└── todo_add           (void → no file needed)
 ```
 
 ```json
-// var/fake/todo_item.json
+// var/fake/todo_item.json  — single JSON object
 {
     "todoId": "01HVXXXXXX0008",
-    "todoTitle": "Beフレームワークのチュートリアルを書く",
-    "todoMemo": "ALPSから始めて、JSONスキーマ、Beの実装まで",
+    "todoTitle": "Buy groceries",
+    "todoMemo": "Milk, eggs, bread",
     "isCompleted": false,
     "createdAt": "2026-03-02T08:00:00+09:00"
 }
 ```
 
-```json
-// var/fake/todo_list.json
-[
-    {
-        "todoId": "01HVXXXXXX0008",
-        "todoTitle": "Beフレームワークのチュートリアルを書く",
-        "isCompleted": false,
-        "createdAt": "2026-03-02T08:00:00+09:00"
-    },
-    {
-        "todoId": "01HVXXXXXX0007",
-        "todoTitle": "ALPSプロファイルを設計する",
-        "isCompleted": true,
-        "createdAt": "2026-03-01T10:30:00+09:00"
-    }
-]
+```jsonl
+// var/fake/todo_list.jsonl  — one JSON object per line
+{"todoId": "01HVXXXXXX0008", "todoTitle": "Buy groceries", "isCompleted": false, "createdAt": "2026-03-02T08:00:00+09:00"}
+{"todoId": "01HVXXXXXX0007", "todoTitle": "Call dentist", "isCompleted": true, "createdAt": "2026-03-01T10:30:00+09:00"}
 ```
 
 ## How It Works
@@ -162,16 +149,6 @@ Both implement the same interface contracts. Swap modules, swap behavior.
 - **Commands**: void methods are no-ops (fake commands always succeed)
 - **Missing files**: If JSON file not found, throw `FakeJsonNotFoundException` with clear message
 - **snake_case → camelCase**: Same automatic conversion as Ray.MediaQuery
-
-## Integration with Be Framework
-
-[Be Framework](https://github.com/be-framework/be-framework) uses Ray.Di for DI. Ray.FakeQuery fits naturally:
-
-```
-Phase 1: Be + InMemory / FakeQuery  ← develop domain logic, no DB needed
-Phase 2: Be + Ray.MediaQuery        ← add SQL, swap module
-Phase 3: BEAR.Sunday + Be           ← HTTP layer wraps domain
-```
 
 ## License
 
