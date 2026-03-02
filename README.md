@@ -6,7 +6,7 @@ Replace SQL execution with JSON fixtures for testing and frontend development.
 
 Ray.FakeQuery is a companion package to [Ray.MediaQuery](https://github.com/ray-di/Ray.MediaQuery) that replaces SQL execution with JSON fixture files — no database required.
 
-```
+```text
 var/
 ├── sql/
 │   └── todo_item.sql      ← production: SQL executed against DB
@@ -65,7 +65,7 @@ protected function configure(): void
 
 Create JSON files matching the query ID:
 
-```
+```text
 var/fake/
 ├── todo_item.json      ← single entity (?Entity)
 ├── todo_list.jsonl     ← collection (array<Entity>), JSON Lines
@@ -127,7 +127,7 @@ No JSON file needed for void methods. They simply succeed silently.
 
 ## Project Structure
 
-```
+```text
 src/
 ├── FakeQueryModule.php         Ray.Di module
 ├── FakeQueryInterceptor.php    Intercepts #[DbQuery] calls
@@ -137,7 +137,7 @@ src/
 
 ## Relation to Ray.MediaQuery
 
-```
+```text
 Ray.MediaQuery   SQL files → DB execution → Entity
 Ray.FakeQuery    JSON files → hydration → Entity (same interface)
 ```
