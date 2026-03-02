@@ -4,6 +4,6 @@ declare(strict_types=1);
 
 namespace Ray\FakeQuery\Exception;
 
-final class LogicException extends \LogicException
+class LogicException extends \LogicException
 {
 }

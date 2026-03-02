@@ -91,7 +91,9 @@ Intercepts method calls on `#[DbQuery]` annotated methods:
 2. Determine return type from method signature
 3. If return type is `void` → do nothing, return null
 4. Load `{fakeDir}/{queryId}.json`
-5. If file not found → throw `FakeJsonNotFoundException("{queryId}.json not found in {fakeDir}")`
+5. If file not found:
+   - nullable return type → return `null`
+   - non-nullable return type → throw `FakeJsonNotFoundException`
 6. Hydrate JSON to return type and return
 
 ```php
@@ -141,11 +143,21 @@ Look at how Ray.MediaQuery handles hydration (`/Users/akihito/git/Ray.MediaQuery
 
 ## JSON File Conventions
 
-- Filename: `{queryId}.json` (e.g., `#[DbQuery('todo_item')]` → `todo_item.json`)
-- Single entity: JSON object `{}`
-- Collection: JSON array `[{}, {}]`
-- Nullable: `null` or missing file returns null for nullable return types
+- Single entity (`?Entity`): `{queryId}.json` — single JSON object
+- Collection (`array<Entity>`): `{queryId}.jsonl` — JSON Lines, one object per line
+- Nullable: missing file or `null` content returns null for nullable return types
 - void methods: no file needed
+
+### Why JSONL for collections?
+
+```jsonl
+{"todoId": "01HVXXXXXX0007", "todoTitle": "ALPSプロファイルを設計する", "isCompleted": true}
+{"todoId": "01HVXXXXXX0008", "todoTitle": "Beフレームワークのチュートリアルを書く", "isCompleted": false}
+```
+
+- Adding a record = adding a line (no array syntax, no trailing comma issues)
+- Git diffs are clean
+- Each line is independently valid JSON
 
 ## Exception
 
@@ -164,7 +176,7 @@ final class FakeJsonNotFoundException extends \RuntimeException
 ## Key Behaviors
 
 1. **Commands are no-ops**: `void` return type → silently succeed
-2. **Missing file throws**: Clear error message with queryId and directory
+2. **Missing file handling**: Nullable returns `null`; non-nullable throws with queryId and directory
 3. **snake_case → camelCase**: Automatic key conversion on hydration
 4. **Nullable respected**: `?Entity` with null JSON returns null
 5. **Array PHPDoc respected**: `@return array<Entity>` triggers array hydration
