@@ -10,6 +10,7 @@ use Ray\Di\Injector;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
@@ -112,7 +113,7 @@ final class FakeQueryModuleTest extends TestCase
             protected function configure(): void
             {
                 $this->install(new FakeQueryModule(
-                    '/nonexistent/dir',
+                    __DIR__ . '/FakeEmpty',
                     __DIR__ . '/Fake/Query',
                 ));
             }
@@ -132,7 +133,7 @@ final class FakeQueryModuleTest extends TestCase
             protected function configure(): void
             {
                 $this->install(new FakeQueryModule(
-                    '/nonexistent/dir',
+                    __DIR__ . '/FakeEmpty',
                     __DIR__ . '/Fake/Query',
                 ));
             }
@@ -155,7 +156,7 @@ final class FakeQueryModuleTest extends TestCase
             protected function configure(): void
             {
                 $this->install(new FakeQueryModule(
-                    '/nonexistent/dir',
+                    __DIR__ . '/FakeEmpty',
                     __DIR__ . '/Fake/Query',
                 ));
             }
@@ -164,6 +165,14 @@ final class FakeQueryModuleTest extends TestCase
         /** @var TodoQueryInterface $query */
         $query = $injector->getInstance(TodoQueryInterface::class);
         $query->list();
+    }
+
+    public function testInvalidFakeDirThrows(): void
+    {
+        $this->expectException(InvalidFakeDirException::class);
+        $this->expectExceptionMessage('/nonexistent/dir');
+
+        new FakeQueryConfig('/nonexistent/dir');
     }
 
     public function testUnknownFakeJsonFileThrows(): void

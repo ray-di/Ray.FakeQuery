@@ -91,7 +91,9 @@ Intercepts method calls on `#[DbQuery]` annotated methods:
 2. Determine return type from method signature
 3. If return type is `void` → do nothing, return null
 4. Load `{fakeDir}/{queryId}.json`
-5. If file not found → throw `FakeJsonNotFoundException("{queryId}.json not found in {fakeDir}")`
+5. If file not found:
+   - nullable return type → return `null`
+   - non-nullable return type → throw `FakeJsonNotFoundException`
 6. Hydrate JSON to return type and return
 
 ```php
@@ -174,7 +176,7 @@ final class FakeJsonNotFoundException extends \RuntimeException
 ## Key Behaviors
 
 1. **Commands are no-ops**: `void` return type → silently succeed
-2. **Missing file throws**: Clear error message with queryId and directory
+2. **Missing file handling**: Nullable returns `null`; non-nullable throws with queryId and directory
 3. **snake_case → camelCase**: Automatic key conversion on hydration
 4. **Nullable respected**: `?Entity` with null JSON returns null
 5. **Array PHPDoc respected**: `@return array<Entity>` triggers array hydration
