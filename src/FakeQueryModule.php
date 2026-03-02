@@ -27,6 +27,7 @@ final class FakeQueryModule extends AbstractModule
     protected function configure(): void
     {
         $this->bind(FakeQueryConfig::class)->toInstance(new FakeQueryConfig($this->fakeDir));
+        $this->bind(JsonHydrator::class);
         $this->bind(DocBlockFactoryInterface::class)->toInstance(DocBlockFactory::createInstance());
         $this->bind(ReturnEntityInterface::class)->to(ReturnEntity::class);
 
