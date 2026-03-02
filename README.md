@@ -2,7 +2,7 @@
 
 A companion to [Ray.MediaQuery](https://github.com/ray-di/Ray.MediaQuery) that replaces SQL execution with JSON fixture files — no database required. Designed for testing and frontend development.
 
-```
+```text
 Ray.MediaQuery   SQL files  → DB execution → Entity
 Ray.FakeQuery    JSON files → hydration    → Entity (same interface)
 ```
