@@ -10,7 +10,7 @@ Ray.FakeQuery    JSON files → hydration    → Entity (same interface)
 ## Installation
 
 ```bash
-composer require ray/fake-query
+composer require ray/fake-query 1.x-dev --dev
 ```
 
 ## Usage
