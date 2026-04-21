@@ -8,6 +8,7 @@ use Override;
 use Ray\Aop\MethodInterceptor;
 use Ray\Aop\MethodInvocation;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\RuntimeException;
 use Ray\MediaQuery\Annotation\DbQuery;
 use Ray\MediaQuery\ReturnEntityInterface;
 use ReflectionNamedType;
@@ -66,7 +67,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
         $content = file_get_contents($jsonFile);
         if ($content === false) {
-            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
+            throw new RuntimeException("Failed to read fake JSON file: {$jsonFile}");
         }
 
         /** @psalm-suppress MixedAssignment */
