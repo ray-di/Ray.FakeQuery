@@ -286,6 +286,13 @@ final class FakeQueryModuleTest extends TestCase
         new FakeQueryConfig('/nonexistent/dir');
     }
 
+    public function testFakeDirTrailingSeparatorIsNormalized(): void
+    {
+        $config = new FakeQueryConfig(__DIR__ . '/Fake/');
+
+        $this->assertSame(__DIR__ . '/Fake', $config->fakeDir);
+    }
+
     public function testUnknownFakeJsonFileThrows(): void
     {
         $this->expectException(UnknownFakeJsonException::class);
