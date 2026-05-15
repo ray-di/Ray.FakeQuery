@@ -13,6 +13,8 @@ Ray.FakeQuery    JSON files → hydration    → Entity (same interface)
 composer require ray/fake-query 1.x-dev --dev
 ```
 
+This package targets Ray.MediaQuery `^1.1`.
+
 ## Usage
 
 Define query interfaces with `#[DbQuery]` as usual:
@@ -63,3 +65,11 @@ Create JSON files matching the query ID in `#[DbQuery]`:
 `void` methods require no file — they succeed silently as no-ops.
 
 JSON keys use `snake_case`; entity properties use `camelCase`. Conversion is automatic, matching Ray.MediaQuery behavior.
+
+## Fixture Format
+
+| Query shape | File | Meaning |
+|-------------|------|---------|
+| row / nullable row | `<query_id>.json` | One JSON object, raw row, or `null`. |
+| row list | `<query_id>.jsonl` | One JSON object per line. Empty files represent empty lists. |
+| void command | no file | The command succeeds as a no-op. |

@@ -1,281 +1,122 @@
-# Task Plan — Ray.FakeQuery 実装
+# Task Plan — Ray.FakeQuery Release Hardening
 
 ## Goal
-`FakeQueryModule` をインストールすると、`#[DbQuery]` アノテーション付きインターフェースのメソッドが
-SQLではなくJSONファイルからデータを返すようになるパッケージを実装する。
+Use the BEAR.AppKata / MyVendor.Cms modernization use cases as the release
+engine for Ray.FakeQuery, then prepare a stable package release.
 
-## ステータス凡例
+Ray.FakeQuery should let tests and frontend development replace
+Ray.MediaQuery SQL execution with executable fixture vocabulary:
+
+- `#[DbQuery]` interface remains the public contract.
+- row fixtures use `.json`.
+- row-list fixtures use `.jsonl`, one object per line.
+- fixture names follow the Ray.MediaQuery query id.
+- fake data hydrates through the same Entity / result contracts the application uses.
+
+## Release Judgment
+- `1.x-dev` is useful today for experiments.
+- A narrow `0.1.0` tag would be acceptable for current row / row-list support.
+- The target for this work is **1.0.0 readiness**, because BEAR.AppKata needs
+  Ray.MediaQuery 1.1 result semantics, not only simple entity hydration.
+
+## Source Use Cases
+- `/Users/akihito/git/bear-app`
+  - Admin read fixtures as shared domain vocabulary.
+  - BDR samples: `AffectedRows`, typed selection result wrappers, smoke tests.
+- `/Users/akihito/git/MyVendor.Cms`
+  - Existing `FakeSqlQuery` behavior.
+  - `ArticleSelection`, `ArticleAffectedRowsCommandInterface`, `PagesInterface`.
+  - MediaQuery smoke tests and fake pager examples.
+
+## Decisions
+- JSONL is the canonical row-list fixture format. Older `.planning` references to
+  row-list `.json` are obsolete.
+- Nullable row methods keep Ray.MediaQuery "no row" parity: a missing row fixture
+  returns `null`. Non-nullable rows and row lists still throw when the fixture is
+  absent. To make a no-row example explicit, a `.json` file containing `null`
+  remains valid; empty `.jsonl` files represent empty lists.
+- Fake classes remain useful only for behavior outside Ray.FakeQuery scope.
+  Direct app-local fake query classes should shrink as Ray.FakeQuery covers the
+  shared query/result contract.
+- Support Ray.MediaQuery 1.1 `PostQueryInterface` result paths before claiming
+  1.0.0 readiness.
+
+## Status Legend
 - [ ] pending
-- [~] in_progress
+- [~] in progress
 - [x] complete
-- [!] blocked / 要確認
+- [!] blocked / needs decision
 
----
+## Phase 0: Baseline Assessment [x]
+- [x] Confirm current branch and HEAD.
+- [x] Run current `composer tests`.
+- [x] Run coverage check.
+- [x] Run `composer crc` and record blocker.
+- [x] Inspect current README and `.planning` drift.
 
-## Phase 0: 設計判断（確定済み）[x]
+## Phase 1: Planning Synchronization [x]
+- [x] Replace obsolete implementation plan with release-hardening plan.
+- [x] Record JSONL as the canonical list fixture format.
+- [x] Record BEAR.AppKata / MyVendor.Cms as release acceptance sources.
+- [x] Incorporate sub-agent findings into this plan.
 
-1. **Constructor エンティティの引数マッピング** → **名前ベース**
-   - Reflection でパラメータ名を取得し、JSON キー（snake_case→camelCase変換）でマッピング
+## Phase 2: Release Hygiene [~]
+- [x] Fix direct dependency declarations so `composer crc` passes.
+- [x] Add package description, keywords, support metadata, and CI badges only if
+      they reflect real checks.
+- [x] Add GitHub Actions for PHP 8.2, 8.3, 8.4, and 8.5 where available.
+- [ ] Run highest and lowest dependency test jobs, or document why lowest is not
+      currently practical.
+- [x] Update README release scope and semantics.
 
-2. **nullable + JSONファイル不在の挙動** → **FakeJsonNotFoundException をスロー**
-   - null を返したければ明示的に JSON ファイルに `null` と書く
+## Phase 3: Fixture Contract And Diagnostics [ ]
+- [x] Support nested query ids by loading and validating subdirectory fixtures.
+- [ ] Keep nullable missing row fixtures returning `null`; add an optional strict
+      validation path only if callers need every query id to be materialized.
+- [ ] Make missing non-nullable row and row-list fixture files throw a clear exception.
+- [ ] Keep void `#[DbQuery]` methods as no-op without a fixture file.
+- [ ] Support explicit `null` in row `.json` fixtures for `?Entity` misses.
+- [ ] Keep empty `.jsonl` valid for empty row-list results.
+- [ ] Add invalid JSON / invalid JSONL diagnostics.
+- [ ] Replace `assert()`-dependent runtime validation with explicit exceptions
+      for fixture shape and hydration errors.
 
-3. **PHP バージョン要件** → **`^8.2` に変更**
+## Phase 4: Ray.MediaQuery 1.1 Result Support [ ]
+- [x] Add `#[DbQuery(factory: ...)]` hydration parity for static and injected
+      factory classes.
+- [ ] Add support for `Ray\MediaQuery\Result\AffectedRows`.
+- [ ] Add support for `Ray\MediaQuery\Result\InsertedRow`.
+- [ ] Add support for custom `PostQueryInterface` wrappers over hydrated SELECT
+      rows, such as MyVendor.Cms `ArticleSelection`.
+- [ ] Preserve `#[DbQuery(factory: ...)]` semantics for row and row-list
+      hydration where possible.
+- [ ] Add tests that mirror BEAR.AppKata / MyVendor.Cms BDR samples.
 
-4. **`DbQuery::$type` の扱い** → **尊重する（MediaQuery と同じ挙動）**
-   - `type === 'row'` → single fetch 強制
+## Phase 5: Pager Support [ ]
+- [ ] Add fake `PagesInterface` support for methods annotated with `#[Pager]`.
+- [ ] Decide fixture shape for paged row lists without making DB dumps.
+- [ ] Add tests for count, page access, per-page argument, and empty pages.
+- [ ] Compare behavior against MyVendor.Cms `FakePages`.
 
----
+## Phase 6: Reference Integration Checks [ ]
+- [ ] Try Ray.FakeQuery in a BEAR.AppKata hermetic test context for Admin read
+      fixtures.
+- [ ] Compare with MyVendor.Cms fake query smoke expectations.
+- [ ] Record any missing upstream behavior as Ray.FakeQuery issues or local
+      narrow adapters.
+- [ ] Keep app fixtures as domain vocabulary, not raw mock assertions.
 
-## Phase 1: 依存関係セットアップ [ ]
+## Phase 7: Release Preparation [ ]
+- [ ] Ensure `composer tests`, `composer coverage`, and `composer crc` pass.
+- [ ] Ensure GitHub Actions are green.
+- [ ] Update CHANGELOG or release notes.
+- [ ] Decide tag:
+      - `0.1.0` if only simple row / row-list support is guaranteed.
+      - `1.0.0` if Phases 2-6 pass against BEAR.AppKata / MyVendor.Cms use cases.
+- [ ] Create release PR.
 
-### 1-1. composer.json 更新
-```json
-"require": {
-    "php": "^8.2",
-    "ray/di": "^2.18",
-    "ray/media-query": "^1.0"
-}
-```
-
-### 1-2. composer update
-```bash
-composer update
-```
-
-### 検証
-- `vendor/ray/media-query/src/` が存在する
-- `vendor/ray/di/` が存在する
-
----
-
-## Phase 2: コア実装 [ ]
-
-### 2-1. `src/FakeQueryConfig.php`
-```php
-final class FakeQueryConfig {
-    public function __construct(
-        public readonly string $fakeDir,
-    ) {}
-}
-```
-
-### 2-2. `src/Exception/FakeJsonNotFoundException.php`
-`src/Exception/RuntimeException.php` を継承。
-```php
-final class FakeJsonNotFoundException extends RuntimeException {
-    public function __construct(string $queryId, string $fakeDir) {
-        parent::__construct("Fake JSON file not found: {$queryId}.json in {$fakeDir}");
-    }
-}
-```
-
-### 2-3. `src/Hydrator/FakeJsonHydrator.php`
-責務: JSON データ → エンティティオブジェクト or 配列
-
-入力:
-- `array|null $data` （JSONデコード済みデータ）
-- `string|null $entityClass` （エンティティFQCN、nullならraw array）
-- `bool $isRow` （single か list か）
-
-ロジック:
-```
-$isRow = true:
-  $entityClass = null → return $data as-is (raw assoc)
-  $entityClass あり:
-    $data = null → return null
-    → hydrateOne($data, $entityClass)
-
-$isRow = false:
-  $entityClass = null → return $data as-is (raw assoc array)
-  $entityClass あり:
-    → array_map(fn($row) => hydrateOne($row, $entityClass), $data)
-
-hydrateOne($row, $entity):
-  method_exists($entity, '__construct') なし
-    → new $entity(), public property を camelCase 変換後に set
-  あり
-    → Reflection でコンストラクタパラメータを取得
-    → param名（またはsnake_case）で $row からマッピング
-    → new $entity(...$args)
-```
-
-### 2-4. `src/Interceptor/FakeQueryInterceptor.php`
-```php
-final class FakeQueryInterceptor implements MethodInterceptor {
-    public function __construct(
-        private readonly FakeQueryConfig $config,
-        private readonly FakeJsonHydrator $hydrator,
-        private readonly ReturnEntityInterface $returnEntity,
-    ) {}
-
-    public function invoke(MethodInvocation $invocation): mixed {
-        $method = $invocation->getMethod();
-        $dbQuery = $method->getAnnotation(DbQuery::class); // Ray.Aop API
-
-        // void → no-op
-        $returnType = $method->getReturnType();
-        if ($returnType instanceof ReflectionNamedType && $returnType->getName() === 'void') {
-            return null;
-        }
-
-        // row か row_list か判定（MediaQueryと同ロジック）
-        $isRow = $dbQuery->type === 'row'
-            || $returnType instanceof ReflectionUnionType
-            || ($returnType instanceof ReflectionNamedType && $returnType->getName() !== 'array');
-
-        // JSON ファイル読込
-        $jsonFile = $this->config->fakeDir . '/' . $dbQuery->id . '.json';
-        if (! file_exists($jsonFile)) {
-            throw new FakeJsonNotFoundException($dbQuery->id, $this->config->fakeDir);
-        }
-        $data = json_decode((string) file_get_contents($jsonFile), true);
-
-        // エンティティクラス取得（PHPDoc含む）
-        $entityClass = ($this->returnEntity)($method);
-
-        return $this->hydrator->hydrate($data, $entityClass, $isRow);
-    }
-}
-```
-
-### 2-5. `src/FakeQueryModule.php`
-```php
-final class FakeQueryModule extends AbstractModule {
-    public function __construct(
-        private readonly string $fakeDir,
-        private readonly string $interfaceDir,
-        AbstractModule|null $module = null,
-    ) {
-        parent::__construct($module);
-    }
-
-    protected function configure(): void {
-        // 1. FakeQueryConfig をバインド
-        $this->bind(FakeQueryConfig::class)->toInstance(new FakeQueryConfig($this->fakeDir));
-
-        // 2. ReturnEntityInterface をバインド（ray/media-queryから再利用）
-        $this->bind(DocBlockFactoryInterface::class)->toInstance(DocBlockFactory::createInstance());
-        $this->bind(ReturnEntityInterface::class)->to(ReturnEntity::class);
-
-        // 3. interfaceDir からインターフェースをスキャン、toNull() でバインド
-        $queries = Queries::fromDir($this->interfaceDir);
-        foreach ($queries->classes as $class) {
-            $this->bind($class)->toNull();
-        }
-
-        // 4. #[DbQuery] メソッドへインターセプトをバインド
-        $this->bindInterceptor(
-            $this->matcher->any(),
-            $this->matcher->annotatedWith(DbQuery::class),
-            [FakeQueryInterceptor::class],
-        );
-    }
-}
-```
-
----
-
-## Phase 3: テスト実装 [ ]
-
-### 3-1. テスト用 Fake データ作成
-
-**`tests/Fake/Interface/TodoQueryInterface.php`**
-```php
-interface TodoQueryInterface {
-    #[DbQuery('todo_item')]
-    public function item(string $todoId): ?TodoEntity;
-
-    #[DbQuery('todo_list')]
-    /** @return array<TodoEntity> */
-    public function list(): array;
-}
-```
-
-**`tests/Fake/Entity/TodoEntity.php`**
-```php
-final class TodoEntity {
-    public string $todoId;
-    public string $todoTitle;
-    public bool $isCompleted;
-}
-```
-
-**`tests/Fake/todo_item.json`**
-```json
-{
-    "todo_id": "01HVXXXXXX0008",
-    "todo_title": "Beフレームワーク",
-    "is_completed": false
-}
-```
-
-**`tests/Fake/todo_list.json`**
-```json
-[
-    {"todo_id": "01HVXXXXXX0008", "todo_title": "Beフレームワーク", "is_completed": false},
-    {"todo_id": "01HVXXXXXX0007", "todo_title": "ALPS設計", "is_completed": true}
-]
-```
-
-**Command 用**:
-```php
-interface TodoCommandInterface {
-    #[DbQuery('todo_add')]
-    public function add(string $todoId, string $title): void;
-}
-```
-
-### 3-2. `tests/FakeQueryModuleTest.php`
-
-テストケース:
-1. `testItemQuery` — `?Entity` 戻り値、single JSON → エンティティ取得
-2. `testListQuery` — `array<Entity>` PHPDoc、JSON配列 → エンティティ配列
-3. `testCommandIsNoOp` — `void` 戻り値 → 例外なし、null返却
-4. `testMissingJsonThrows` — JSON ファイルなし → `FakeJsonNotFoundException`
-5. `testRawArrayQuery` — PHPDoc なし `array` 戻り値 → raw array
-
----
-
-## Phase 4: 品質チェック [ ]
-
-```bash
-composer cs-fix          # コードスタイル修正
-composer phpstan         # PHPStan level max
-composer psalm           # Psalm
-composer test            # PHPUnit
-composer tests           # 全チェック
-```
-
----
-
-## リスクと注意点
-
-| リスク | 対策 |
-|--------|------|
-| `ReturnEntity` が internal 変更される | `ReturnEntityInterface` (public) を通してのみ使う |
-| Constructor エンティティのパラメータ名マッピング漏れ | Reflection で getName() を使い、camelCase/snake_case 両方試みる |
-| PHPStan level max で型エラー | `@param`, `@return` を丁寧に書く |
-| `ray/media-query ^1.0` が `^8.2` 要求 | PHP 要件を `^8.2` に更新 |
-
----
-
-## 依存グラフ（実装順）
-
-```
-Phase 1: composer.json
-    ↓
-FakeQueryConfig (単純 VO)
-    ↓
-FakeJsonNotFoundException (単純例外)
-    ↓
-FakeJsonHydrator (hydration ロジック)
-    ↓
-FakeQueryInterceptor (FakeQueryConfig + Hydrator + ReturnEntity)
-    ↓
-FakeQueryModule (全体を束ねる)
-    ↓
-Tests
-    ↓
-Quality checks
-```
+## Errors Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `composer crc` reports `phpDocumentor\Reflection\DocBlockFactory*` and `Ray\Aop\Method*` as unknown symbols | Baseline release check | Add direct dependencies or adjust code so the package declares what it uses. |
+| Existing fake file validation only scanned top-level fixtures | BEAR.AppKata query ids use `admins/...` paths | Replaced top-level glob with recursive validation preserving `/` query ids. |

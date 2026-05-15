@@ -7,11 +7,13 @@ namespace Ray\FakeQuery;
 use PHPUnit\Framework\TestCase;
 use Ray\Di\AbstractModule;
 use Ray\Di\Injector;
+use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
+use Ray\FakeQuery\Query\FactoryTodoQueryInterface;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
 use Ray\FakeQuery\Query\UserQueryInterface;
@@ -21,6 +23,7 @@ final class FakeQueryModuleTest extends TestCase
     private TodoQueryInterface $query;
     private TodoCommandInterface $command;
     private UserQueryInterface $userQuery;
+    private FactoryTodoQueryInterface $factoryQuery;
 
     protected function setUp(): void
     {
@@ -52,6 +55,10 @@ final class FakeQueryModuleTest extends TestCase
         /** @var UserQueryInterface $userQuery */
         $userQuery = $injector->getInstance(UserQueryInterface::class);
         $this->userQuery = $userQuery;
+
+        /** @var FactoryTodoQueryInterface $factoryQuery */
+        $factoryQuery = $injector->getInstance(FactoryTodoQueryInterface::class);
+        $this->factoryQuery = $factoryQuery;
     }
 
     public function testItemReturnsEntity(): void
@@ -105,6 +112,43 @@ final class FakeQueryModuleTest extends TestCase
         $this->assertContainsOnlyInstancesOf(UserEntity::class, $list);
         $this->assertSame('Bob', $list[1]->userName);
         $this->assertFalse($list[1]->isActive);
+    }
+
+    public function testStaticFactoryHydration(): void
+    {
+        $todo = $this->factoryQuery->staticItem();
+
+        $this->assertInstanceOf(FactoryTodoEntity::class, $todo);
+        $this->assertSame('01HVFACTORY1', $todo->todoId);
+        $this->assertSame('Static factory item', $todo->todoTitle);
+        $this->assertSame('2026-01-01 00:00:00', $todo->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testInjectedFactoryHydration(): void
+    {
+        $todo = $this->factoryQuery->injectedItem();
+
+        $this->assertInstanceOf(FactoryTodoEntity::class, $todo);
+        $this->assertSame('01HVFACTORY2', $todo->todoId);
+        $this->assertSame('Injected factory item', $todo->todoTitle);
+        $this->assertSame('2026-01-02 00:00:00', $todo->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testStaticFactoryListHydration(): void
+    {
+        $list = $this->factoryQuery->staticList();
+
+        $this->assertContainsOnlyInstancesOf(FactoryTodoEntity::class, $list);
+        $this->assertSame('01HVFACTORY3', $list[0]->todoId);
+        $this->assertSame('2026-01-04 00:00:00', $list[1]->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testNestedQueryIdFixture(): void
+    {
+        $todo = $this->factoryQuery->nestedStaticItem();
+
+        $this->assertSame('01HVNESTED1', $todo->todoId);
+        $this->assertSame('Nested static factory item', $todo->todoTitle);
     }
 
     public function testUnionNullableWithMissingFileReturnsNull(): void
@@ -185,6 +229,22 @@ final class FakeQueryModuleTest extends TestCase
             {
                 $this->install(new FakeQueryModule(
                     __DIR__ . '/FakeUnknown',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+    }
+
+    public function testUnknownNestedFakeJsonFileThrows(): void
+    {
+        $this->expectException(UnknownFakeJsonException::class);
+        $this->expectExceptionMessage('stray_query.json');
+
+        new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeUnknownNested',
                     __DIR__ . '/Fake/Query',
                 ));
             }

@@ -4,23 +4,30 @@ declare(strict_types=1);
 
 namespace Ray\FakeQuery;
 
+use FilesystemIterator;
 use Override;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Ray\Di\AbstractModule;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\MediaQuery\Annotation\DbQuery;
+use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
 use Ray\MediaQuery\Queries;
 use Ray\MediaQuery\ReturnEntity;
 use Ray\MediaQuery\ReturnEntityInterface;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionClass;
+use SplFileInfo;
 
+use function assert;
 use function basename;
-use function glob;
 use function pathinfo;
+use function str_replace;
+use function strlen;
+use function substr;
 
-use const GLOB_BRACE;
-use const GLOB_NOSORT;
+use const DIRECTORY_SEPARATOR;
 use const PATHINFO_EXTENSION;
 
 /** @psalm-import-type DbQueryIdSet from Types */
@@ -41,6 +48,7 @@ final class FakeQueryModule extends AbstractModule
         $this->bind(JsonHydrator::class);
         $this->bind(DocBlockFactoryInterface::class)->toInstance(DocBlockFactory::createInstance());
         $this->bind(ReturnEntityInterface::class)->to(ReturnEntity::class);
+        $this->bind()->annotatedWith(FactoryMethod::class)->toInstance('factory');
 
         $queries = Queries::fromDir($this->interfaceDir);
         foreach ($queries->classes as $class) {
@@ -61,16 +69,34 @@ final class FakeQueryModule extends AbstractModule
     {
         $knownIds = $this->collectDbQueryIds($classes);
 
-        $globResult = glob($this->fakeDir . '/*.{json,jsonl}', GLOB_NOSORT | GLOB_BRACE);
-        $files = $globResult === false ? [] : $globResult;
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->fakeDir, FilesystemIterator::SKIP_DOTS),
+        );
         foreach ($files as $file) {
-            $basename = basename($file);
-            $ext = pathinfo($file, PATHINFO_EXTENSION);
-            $stem = $ext === 'jsonl' ? basename($file, '.jsonl') : basename($file, '.json');
+            assert($file instanceof SplFileInfo);
+            if (! $file->isFile()) {
+                continue;
+            }
+
+            $ext = pathinfo($file->getPathname(), PATHINFO_EXTENSION);
+            if ($ext !== 'json' && $ext !== 'jsonl') {
+                continue;
+            }
+
+            $basename = basename($file->getPathname());
+            $stem = $this->queryIdFromFile($file, $ext);
             if (! isset($knownIds[$stem])) {
                 throw new UnknownFakeJsonException($basename, $this->fakeDir);
             }
         }
+    }
+
+    private function queryIdFromFile(SplFileInfo $file, string $ext): string
+    {
+        $relative = substr($file->getPathname(), strlen($this->fakeDir) + 1);
+        $queryId = substr($relative, 0, -strlen('.' . $ext));
+
+        return str_replace(DIRECTORY_SEPARATOR, '/', $queryId);
     }
 
     /**

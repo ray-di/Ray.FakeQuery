@@ -76,7 +76,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
         $entityClass = ($this->returnEntity)($method);
 
-        return $this->hydrator->hydrate($data, $entityClass, $isRow);
+        return $this->hydrator->hydrate($data, $entityClass, $isRow, $dbQuery);
     }
 
     /** @return JsonRowList */
