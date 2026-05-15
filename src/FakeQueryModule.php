@@ -8,11 +8,12 @@ use FilesystemIterator;
 use Override;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
-use Ray\Aop\BuiltinMatcher;
 use Ray\Di\AbstractModule;
+use Ray\Di\Scope;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\MediaQuery\Annotation\DbQuery;
 use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
+use Ray\MediaQuery\DbQueryInterceptor;
 use Ray\MediaQuery\Queries;
 use Ray\MediaQuery\ReturnEntity;
 use Ray\MediaQuery\ReturnEntityInterface;
@@ -58,11 +59,12 @@ final class FakeQueryModule extends AbstractModule
 
         $this->validateFakeFiles($queries->classes);
 
-        $this->bindPriorityInterceptor(
+        $this->bindInterceptor(
             $this->matcher->any(),
-            new BuiltinMatcher('annotatedWith', [DbQuery::class]),
-            [FakeQueryInterceptor::class],
+            $this->matcher->annotatedWith(DbQuery::class),
+            [DbQueryInterceptor::class],
         );
+        $this->bind(DbQueryInterceptor::class)->to(FakeQueryInterceptor::class)->in(Scope::SINGLETON);
     }
 
     /** @param list<class-string> $classes */
