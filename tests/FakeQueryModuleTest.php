@@ -16,7 +16,9 @@ use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\FakeQuery\Query\FactoryTodoQueryInterface;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
+use Ray\FakeQuery\Query\TodoSelectionQueryInterface;
 use Ray\FakeQuery\Query\UserQueryInterface;
+use Ray\FakeQuery\Result\TodoSelection;
 
 final class FakeQueryModuleTest extends TestCase
 {
@@ -24,6 +26,7 @@ final class FakeQueryModuleTest extends TestCase
     private TodoCommandInterface $command;
     private UserQueryInterface $userQuery;
     private FactoryTodoQueryInterface $factoryQuery;
+    private TodoSelectionQueryInterface $selectionQuery;
 
     protected function setUp(): void
     {
@@ -59,6 +62,10 @@ final class FakeQueryModuleTest extends TestCase
         /** @var FactoryTodoQueryInterface $factoryQuery */
         $factoryQuery = $injector->getInstance(FactoryTodoQueryInterface::class);
         $this->factoryQuery = $factoryQuery;
+
+        /** @var TodoSelectionQueryInterface $selectionQuery */
+        $selectionQuery = $injector->getInstance(TodoSelectionQueryInterface::class);
+        $this->selectionQuery = $selectionQuery;
     }
 
     public function testItemReturnsEntity(): void
@@ -149,6 +156,15 @@ final class FakeQueryModuleTest extends TestCase
 
         $this->assertSame('01HVNESTED1', $todo->todoId);
         $this->assertSame('Nested static factory item', $todo->todoTitle);
+    }
+
+    public function testPostQuerySelectionHydratesFactoryRows(): void
+    {
+        $selection = $this->selectionQuery->list();
+
+        $this->assertInstanceOf(TodoSelection::class, $selection);
+        $this->assertCount(2, $selection);
+        $this->assertSame(['Static factory list 1', 'Static factory list 2'], $selection->titles());
     }
 
     public function testUnionNullableWithMissingFileReturnsNull(): void

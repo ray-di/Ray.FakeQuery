@@ -18,7 +18,7 @@
   - composer / CI / release hygiene review.
   - BEAR.AppKata and MyVendor.Cms acceptance criteria extraction.
 - Received sub-agent findings and incorporated the high-priority criteria:
-  nested query ids, factory hydration, `PostQueryInterface`, BDR metadata,
+  nested query ids, factory hydration, select-side result wrappers,
   pager support, and parameter-aware resolver as an extension point.
 - Fixed the first release-hygiene blocker:
   - direct `ray/aop` and `phpdocumentor/reflection-docblock` dependencies,
@@ -31,7 +31,10 @@
   - injected factory hydration,
   - factory row-list hydration,
   - nested query id fixture loading,
-  - recursive unknown fixture validation.
+  - recursive unknown fixture validation,
+  - constructor-based SELECT result wrappers.
+- Removed the fake PDO direction from the current scope. DML metadata results
+  can be added later as direct metadata fixture handling if needed.
 
 ### In Progress
 - Implement Ray.MediaQuery 1.1 result support in priority order.
@@ -63,6 +66,8 @@
 - `tests/Fake/Factory/InjectedTodoFactory.php`
 - `tests/Fake/Factory/StaticTodoFactory.php`
 - `tests/Fake/Query/FactoryTodoQueryInterface.php`
+- `tests/Fake/Query/TodoSelectionQueryInterface.php`
+- `tests/Fake/Result/TodoSelection.php`
 - `tests/Fake/factory_static_item.json`
 - `tests/Fake/factory_injected_item.json`
 - `tests/Fake/factory_static_list.jsonl`

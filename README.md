@@ -73,3 +73,8 @@ JSON keys use `snake_case`; entity properties use `camelCase`. Conversion is aut
 | row / nullable row | `<query_id>.json` | One JSON object, raw row, or `null`. |
 | row list | `<query_id>.jsonl` | One JSON object per line. Empty files represent empty lists. |
 | void command | no file | The command succeeds as a no-op. |
+
+Constructor-based select result wrappers are supported for return types that
+implement `Ray\MediaQuery\Result\PostQueryInterface`, such as a typed selection
+object wrapping hydrated rows. DML metadata results such as `AffectedRows` and
+`InsertedRow` are outside the current select-fixture scope.

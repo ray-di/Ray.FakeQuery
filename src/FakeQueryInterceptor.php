@@ -9,7 +9,9 @@ use Ray\Aop\MethodInterceptor;
 use Ray\Aop\MethodInvocation;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\MediaQuery\Annotation\DbQuery;
+use Ray\MediaQuery\Result\PostQueryInterface;
 use Ray\MediaQuery\ReturnEntityInterface;
+use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionType;
 use ReflectionUnionType;
@@ -18,9 +20,12 @@ use function array_filter;
 use function array_map;
 use function array_values;
 use function assert;
+use function class_exists;
 use function explode;
 use function file_exists;
 use function file_get_contents;
+use function is_array;
+use function is_subclass_of;
 use function json_decode;
 use function trim;
 
@@ -49,6 +54,16 @@ final class FakeQueryInterceptor implements MethodInterceptor
             return null;
         }
 
+        /** @var class-string|null $entityClass */
+        $entityClass = ($this->returnEntity)($method);
+
+        if ($returnType instanceof ReflectionNamedType) {
+            $typeName = $returnType->getName();
+            if (class_exists($typeName) && is_subclass_of($typeName, PostQueryInterface::class)) {
+                return $this->selectPostQuery($typeName, $dbQuery, $entityClass);
+            }
+        }
+
         $isRow = $dbQuery->type === 'row'
             || $returnType instanceof ReflectionUnionType
             || ($returnType instanceof ReflectionNamedType && $returnType->getName() !== 'array');
@@ -74,9 +89,40 @@ final class FakeQueryInterceptor implements MethodInterceptor
             ? json_decode($content, true, 512, JSON_THROW_ON_ERROR)
             : $this->parseJsonl($content);
 
-        $entityClass = ($this->returnEntity)($method);
-
         return $this->hydrator->hydrate($data, $entityClass, $isRow, $dbQuery);
+    }
+
+    /**
+     * @param class-string<PostQueryInterface> $postQueryClass
+     * @param class-string|null                $entityClass
+     */
+    private function selectPostQuery(string $postQueryClass, DbQuery $dbQuery, string|null $entityClass): PostQueryInterface
+    {
+        $rows = $this->hydrator->hydrate($this->readJsonl($dbQuery), $entityClass, false, $dbQuery);
+        assert(is_array($rows));
+
+        return (new ReflectionClass($postQueryClass))->newInstance($rows);
+    }
+
+    /** @return JsonRowList */
+    private function readJsonl(DbQuery $dbQuery): array
+    {
+        return $this->parseJsonl($this->readContent($dbQuery, '.jsonl'));
+    }
+
+    private function readContent(DbQuery $dbQuery, string $ext): string
+    {
+        $jsonFile = $this->config->fakeDir . '/' . $dbQuery->id . $ext;
+        if (! file_exists($jsonFile)) {
+            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
+        }
+
+        $content = file_get_contents($jsonFile);
+        if ($content === false) {
+            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir); // @codeCoverageIgnore — file_exists passed
+        }
+
+        return $content;
     }
 
     /** @return JsonRowList */

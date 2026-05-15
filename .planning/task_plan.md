@@ -22,10 +22,10 @@ Ray.MediaQuery SQL execution with executable fixture vocabulary:
 ## Source Use Cases
 - `/Users/akihito/git/bear-app`
   - Admin read fixtures as shared domain vocabulary.
-  - BDR samples: `AffectedRows`, typed selection result wrappers, smoke tests.
+  - BDR samples: typed selection result wrappers and smoke tests.
 - `/Users/akihito/git/MyVendor.Cms`
   - Existing `FakeSqlQuery` behavior.
-  - `ArticleSelection`, `ArticleAffectedRowsCommandInterface`, `PagesInterface`.
+  - `ArticleSelection`, `PagesInterface`, and current DML fake behavior.
   - MediaQuery smoke tests and fake pager examples.
 
 ## Decisions
@@ -38,8 +38,9 @@ Ray.MediaQuery SQL execution with executable fixture vocabulary:
 - Fake classes remain useful only for behavior outside Ray.FakeQuery scope.
   Direct app-local fake query classes should shrink as Ray.FakeQuery covers the
   shared query/result contract.
-- Support Ray.MediaQuery 1.1 `PostQueryInterface` result paths before claiming
-  1.0.0 readiness.
+- Keep 1.0.0 scope select-side first. DML metadata results such as
+  `AffectedRows` and `InsertedRow` should not require fake PDO machinery; if
+  they are added, they should be built directly from explicit metadata fixtures.
 
 ## Status Legend
 - [ ] pending
@@ -81,16 +82,16 @@ Ray.MediaQuery SQL execution with executable fixture vocabulary:
 - [ ] Replace `assert()`-dependent runtime validation with explicit exceptions
       for fixture shape and hydration errors.
 
-## Phase 4: Ray.MediaQuery 1.1 Result Support [ ]
+## Phase 4: Ray.MediaQuery 1.1 Select Result Support [~]
 - [x] Add `#[DbQuery(factory: ...)]` hydration parity for static and injected
       factory classes.
-- [ ] Add support for `Ray\MediaQuery\Result\AffectedRows`.
-- [ ] Add support for `Ray\MediaQuery\Result\InsertedRow`.
-- [ ] Add support for custom `PostQueryInterface` wrappers over hydrated SELECT
-      rows, such as MyVendor.Cms `ArticleSelection`.
+- [x] Add support for constructor-based custom `PostQueryInterface` wrappers
+      over hydrated SELECT rows, such as MyVendor.Cms `ArticleSelection`.
 - [ ] Preserve `#[DbQuery(factory: ...)]` semantics for row and row-list
       hydration where possible.
 - [ ] Add tests that mirror BEAR.AppKata / MyVendor.Cms BDR samples.
+- [ ] Keep DML metadata (`AffectedRows`, `InsertedRow`) as a separate optional
+      phase; do not introduce fake PDO just to satisfy `PostQueryContext`.
 
 ## Phase 5: Pager Support [ ]
 - [ ] Add fake `PagesInterface` support for methods annotated with `#[Pager]`.

@@ -43,9 +43,7 @@
 ## BEAR.AppKata / MyVendor.Cms Release Criteria
 - Fake fixtures must be reusable as shared domain vocabulary, not just local
   mocks.
-- BDR result support matters:
-  - `Ray\MediaQuery\Result\AffectedRows`
-  - `Ray\MediaQuery\Result\InsertedRow`
+- Select-side BDR result support matters:
   - custom `PostQueryInterface` wrappers for SELECT row lists
   - typed selection result objects such as `ArticleSelection`
 - Pager support matters for `PagesInterface` / `#[Pager]`.
@@ -58,10 +56,11 @@
   first stable release aims to replace MyVendor.Cms' stateful `FakeSqlQuery`.
 
 ## Open Technical Questions
-- Exact fake fixture shape for `AffectedRows` and `InsertedRow`.
+- Whether `AffectedRows` and `InsertedRow` belong in Ray.FakeQuery 1.0. If they
+  do, they should be built directly from metadata fixtures, not by creating fake
+  PDO objects.
 - Exact fake fixture shape for `PagesInterface`.
-- Whether fake `PostQueryContext` needs a lightweight PDOStatement/PDO adapter
-  double, or whether Ray.FakeQuery should construct known result classes directly
-  and only use `fromContext()` for SELECT wrappers.
+- Whether custom SELECT wrappers should remain constructor-based only or support
+  `fromContext()` through a public Ray.MediaQuery helper in the future.
 - Whether 1.0.0 must include a stateful resolver layer for write/read round trips
   or whether static fixtures plus BDR metadata fixtures are sufficient.
