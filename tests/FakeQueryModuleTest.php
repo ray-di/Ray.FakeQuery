@@ -11,6 +11,7 @@ use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\FakeQuery\Query\FactoryTodoQueryInterface;
@@ -160,6 +161,22 @@ final class FakeQueryModuleTest extends TestCase
 
         $this->assertSame('01HVNESTED1', $todo->todoId);
         $this->assertSame('Nested static factory item', $todo->todoTitle);
+    }
+
+    public function testMissingFactoryClassThrows(): void
+    {
+        $this->expectException(InvalidFactoryException::class);
+        $this->expectExceptionMessage('Ray\FakeQuery\Factory\MissingTodoFactory::factory()');
+
+        $this->factoryQuery->missingFactoryClass();
+    }
+
+    public function testMissingFactoryMethodThrows(): void
+    {
+        $this->expectException(InvalidFactoryException::class);
+        $this->expectExceptionMessage('Ray\FakeQuery\Factory\MissingMethodTodoFactory::factory()');
+
+        $this->factoryQuery->missingFactoryMethod();
     }
 
     public function testPostQuerySelectionHydratesFactoryRows(): void

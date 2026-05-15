@@ -10,7 +10,7 @@ Ray.FakeQuery    JSON files → hydration    → Entity (same interface)
 ## Installation
 
 ```bash
-composer require ray/fake-query 1.x-dev --dev
+composer require ray/fake-query:^1.0 --dev
 ```
 
 This package targets Ray.MediaQuery `^1.1`.
@@ -76,5 +76,16 @@ JSON keys use `snake_case`; entity properties use `camelCase`. Conversion is aut
 
 Constructor-based select result wrappers are supported for return types that
 implement `Ray\MediaQuery\Result\PostQueryInterface`, such as a typed selection
-object wrapping hydrated rows. DML metadata results such as `AffectedRows` and
-`InsertedRow` are outside the current select-fixture scope.
+object wrapping hydrated rows. FakeQuery passes the hydrated row list to the
+wrapper constructor; it does not call `PostQueryInterface::fromContext()`.
+
+When `#[DbQuery(factory: SomeFactory::class)]` is used, FakeQuery calls the
+factory method configured by Ray.MediaQuery (the default method name is
+`factory`). Static factory methods are called statically; non-static factory
+methods are resolved through the injector. Fixture fields are passed as
+positional arguments in JSON object order, matching PDO `FETCH_FUNC` semantics,
+so factory fixtures should keep field order aligned with the factory method
+parameters.
+
+DML metadata results such as `AffectedRows` and `InsertedRow` are outside the
+current select-fixture scope.

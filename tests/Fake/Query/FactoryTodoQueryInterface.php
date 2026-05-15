@@ -6,6 +6,7 @@ namespace Ray\FakeQuery\Query;
 
 use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Factory\InjectedTodoFactory;
+use Ray\FakeQuery\Factory\MissingMethodTodoFactory;
 use Ray\FakeQuery\Factory\StaticTodoFactory;
 use Ray\MediaQuery\Annotation\DbQuery;
 
@@ -23,4 +24,10 @@ interface FactoryTodoQueryInterface
 
     #[DbQuery('nested/factory_static_item', factory: StaticTodoFactory::class)]
     public function nestedStaticItem(): FactoryTodoEntity;
+
+    #[DbQuery('factory_missing_class_item', factory: 'Ray\FakeQuery\Factory\MissingTodoFactory')]
+    public function missingFactoryClass(): FactoryTodoEntity;
+
+    #[DbQuery('factory_missing_method_item', factory: MissingMethodTodoFactory::class)]
+    public function missingFactoryMethod(): FactoryTodoEntity;
 }

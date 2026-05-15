@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Ray\FakeQuery;
 
 use Ray\Di\InjectorInterface;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\MediaQuery\Annotation\DbQuery;
 use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
 use Ray\MediaQuery\StringCase;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionParameter;
 
 use function array_key_exists;
@@ -17,7 +19,6 @@ use function array_values;
 use function assert;
 use function class_exists;
 use function is_array;
-use function is_callable;
 use function method_exists;
 
 /** @psalm-import-type JsonRow from Types */
@@ -109,19 +110,22 @@ final class JsonHydrator
 
         $factoryClass = $dbQuery->factory;
         $factoryMethod = $this->factoryMethod;
-        $staticFactory = [$factoryClass, $factoryMethod];
-        if (is_callable($staticFactory)) {
-            return static fn (array $row): mixed => $staticFactory(...array_values($row));
+        if (! class_exists($factoryClass) || ! method_exists($factoryClass, $factoryMethod)) {
+            throw new InvalidFactoryException($factoryClass, $factoryMethod);
         }
 
-        if (! class_exists($factoryClass) || ! method_exists($factoryClass, $factoryMethod)) {
-            return null;
+        $method = new ReflectionMethod($factoryClass, $factoryMethod);
+        if (! $method->isPublic()) {
+            throw new InvalidFactoryException($factoryClass, $factoryMethod);
+        }
+
+        if ($method->isStatic()) {
+            return static fn (array $row): mixed => $method->invokeArgs(null, array_values($row));
         }
 
         $factory = $this->injector->getInstance($factoryClass);
 
-        /** @psalm-suppress MixedMethodCall */
-        return static fn (array $row): mixed => $factory->$factoryMethod(...array_values($row));
+        return static fn (array $row): mixed => $method->invokeArgs($factory, array_values($row));
     }
 
     /**
