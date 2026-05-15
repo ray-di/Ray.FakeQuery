@@ -19,6 +19,10 @@ use Ray\FakeQuery\Query\TodoQueryInterface;
 use Ray\FakeQuery\Query\TodoSelectionQueryInterface;
 use Ray\FakeQuery\Query\UserQueryInterface;
 use Ray\FakeQuery\Result\TodoSelection;
+use Ray\MediaQuery\DbQueryConfig;
+use Ray\MediaQuery\MediaQueryModule;
+use Ray\MediaQuery\Queries;
+use Ray\MediaQuery\SqlQueryInterface;
 
 final class FakeQueryModuleTest extends TestCase
 {
@@ -165,6 +169,36 @@ final class FakeQueryModuleTest extends TestCase
         $this->assertInstanceOf(TodoSelection::class, $selection);
         $this->assertCount(2, $selection);
         $this->assertSame(['Static factory list 1', 'Static factory list 2'], $selection->titles());
+    }
+
+    public function testFakeQueryOverridesExistingMediaQueryInterceptors(): void
+    {
+        $fakeDir = __DIR__ . '/Fake';
+        $interfaceDir = __DIR__ . '/Fake/Query';
+        $module = new class ($interfaceDir) extends AbstractModule {
+            public function __construct(private readonly string $interfaceDir)
+            {
+                parent::__construct();
+            }
+
+            protected function configure(): void
+            {
+                $this->install(new MediaQueryModule(
+                    Queries::fromDir($this->interfaceDir),
+                    [new DbQueryConfig(__DIR__ . '/FakeSql')],
+                ));
+                $this->bind(SqlQueryInterface::class)->to(ThrowingSqlQuery::class);
+            }
+        };
+        $module->override(new FakeQueryModule($fakeDir, $interfaceDir));
+        $injector = new Injector($module, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
     }
 
     public function testUnionNullableWithMissingFileReturnsNull(): void
