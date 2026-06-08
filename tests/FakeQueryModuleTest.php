@@ -286,11 +286,13 @@ final class FakeQueryModuleTest extends TestCase
         new FakeQueryConfig('/nonexistent/dir');
     }
 
-    public function testFakeDirTrailingSeparatorIsNormalized(): void
+    public function testFakeDirTrailingSeparatorsAreNormalized(): void
     {
-        $config = new FakeQueryConfig(__DIR__ . '/Fake/');
+        $slashConfig = new FakeQueryConfig(__DIR__ . '/Fake/');
+        $backslashConfig = new FakeQueryConfig(__DIR__ . '/Fake\\');
 
-        $this->assertSame(__DIR__ . '/Fake', $config->fakeDir);
+        $this->assertSame(__DIR__ . '/Fake', $slashConfig->fakeDir);
+        $this->assertSame(__DIR__ . '/Fake', $backslashConfig->fakeDir);
     }
 
     public function testFakeQueryModuleAcceptsTrailingFakeDirSeparator(): void
