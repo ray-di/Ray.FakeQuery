@@ -59,4 +59,3 @@ jobs:
 
       - name: Check declared dependencies
         run: composer crc
-
