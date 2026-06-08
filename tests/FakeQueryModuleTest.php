@@ -25,6 +25,8 @@ use Ray\MediaQuery\MediaQueryModule;
 use Ray\MediaQuery\Queries;
 use Ray\MediaQuery\SqlQueryInterface;
 
+use const PATH_SEPARATOR;
+
 final class FakeQueryModuleTest extends TestCase
 {
     private TodoQueryInterface $query;
@@ -186,6 +188,7 @@ final class FakeQueryModuleTest extends TestCase
         $this->assertInstanceOf(TodoSelection::class, $selection);
         $this->assertCount(2, $selection);
         $this->assertSame(['Static factory list 1', 'Static factory list 2'], $selection->titles());
+        $this->assertSame([], $selection->values);
     }
 
     public function testFakeQueryOverridesExistingMediaQueryInterceptors(): void
@@ -313,6 +316,110 @@ final class FakeQueryModuleTest extends TestCase
 
         $this->assertInstanceOf(TodoEntity::class, $todo);
         $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryConfigAcceptsMultipleDirectories(): void
+    {
+        $config = new FakeQueryConfig([__DIR__ . '/Fake/', __DIR__ . '/FakeSecondary/']);
+
+        $this->assertSame([__DIR__ . '/Fake', __DIR__ . '/FakeSecondary'], $config->fakeDirs);
+        $this->assertSame(__DIR__ . '/Fake' . PATH_SEPARATOR . __DIR__ . '/FakeSecondary', $config->fakeDir);
+    }
+
+    public function testFakeQueryModuleAcceptsQueryClassList(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake',
+                    [
+                        TodoQueryInterface::class,
+                        TodoCommandInterface::class,
+                        UserQueryInterface::class,
+                        FactoryTodoQueryInterface::class,
+                        TodoSelectionQueryInterface::class,
+                    ],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryModuleAcceptsQueriesObject(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake',
+                    Queries::fromClasses([
+                        TodoQueryInterface::class,
+                        TodoCommandInterface::class,
+                        UserQueryInterface::class,
+                        FactoryTodoQueryInterface::class,
+                        TodoSelectionQueryInterface::class,
+                    ]),
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryModuleReadsMultipleFakeDirsAndFiltersParams(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    [__DIR__ . '/FakeEmpty', __DIR__ . '/FakeSecondary'],
+                    [TodoQueryInterface::class],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $list = $query->listByStatus(true, limit: 1, offset: 1);
+
+        $this->assertCount(1, $list);
+        $this->assertSame('01HVSTATUS3', $list[0]->todoId);
+        $this->assertTrue($list[0]->isCompleted);
+    }
+
+    public function testFakeQueryModuleSelectsRowFromJsonlWhenJsonIsMissing(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeSecondary',
+                    [TodoQueryInterface::class],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->firstByStatus(false);
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('01HVSTATUS1', $todo->todoId);
+        $this->assertFalse($todo->isCompleted);
     }
 
     public function testUnknownFakeJsonFileThrows(): void

@@ -19,9 +19,13 @@ use function count;
  */
 final readonly class TodoSelection implements PostQueryInterface, Countable, IteratorAggregate
 {
-    /** @param list<FactoryTodoEntity> $rows */
-    public function __construct(
+    /**
+     * @param list<FactoryTodoEntity> $rows
+     * @param array<string, mixed>    $values
+     */
+    private function __construct(
         public array $rows,
+        public array $values,
     ) {
     }
 
@@ -30,7 +34,7 @@ final readonly class TodoSelection implements PostQueryInterface, Countable, Ite
         /** @var list<FactoryTodoEntity> $rows */
         $rows = $context->rows;
 
-        return new self($rows);
+        return new self($rows, $context->values);
     }
 
     /** @return list<string> */
