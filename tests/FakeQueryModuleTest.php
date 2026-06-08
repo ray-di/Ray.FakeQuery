@@ -293,6 +293,26 @@ final class FakeQueryModuleTest extends TestCase
         $this->assertSame(__DIR__ . '/Fake', $config->fakeDir);
     }
 
+    public function testFakeQueryModuleAcceptsTrailingFakeDirSeparator(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake/',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
     public function testUnknownFakeJsonFileThrows(): void
     {
         $this->expectException(UnknownFakeJsonException::class);

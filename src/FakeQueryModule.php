@@ -46,7 +46,8 @@ final class FakeQueryModule extends AbstractModule
     #[Override]
     protected function configure(): void
     {
-        $this->bind(FakeQueryConfig::class)->toInstance(new FakeQueryConfig($this->fakeDir));
+        $config = new FakeQueryConfig($this->fakeDir);
+        $this->bind(FakeQueryConfig::class)->toInstance($config);
         $this->bind(JsonHydrator::class);
         $this->bind(DocBlockFactoryInterface::class)->toInstance(DocBlockFactory::createInstance());
         $this->bind(ReturnEntityInterface::class)->to(ReturnEntity::class);
@@ -57,7 +58,7 @@ final class FakeQueryModule extends AbstractModule
             $this->bind($class)->toNull();
         }
 
-        $this->validateFakeFiles($queries->classes);
+        $this->validateFakeFiles($queries->classes, $config->fakeDir);
 
         $this->bindInterceptor(
             $this->matcher->any(),
@@ -68,12 +69,12 @@ final class FakeQueryModule extends AbstractModule
     }
 
     /** @param list<class-string> $classes */
-    private function validateFakeFiles(array $classes): void
+    private function validateFakeFiles(array $classes, string $fakeDir): void
     {
         $knownIds = $this->collectDbQueryIds($classes);
 
         $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($this->fakeDir, FilesystemIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($fakeDir, FilesystemIterator::SKIP_DOTS),
         );
         foreach ($files as $file) {
             assert($file instanceof SplFileInfo);
@@ -87,16 +88,16 @@ final class FakeQueryModule extends AbstractModule
             }
 
             $basename = basename($file->getPathname());
-            $stem = $this->queryIdFromFile($file, $ext);
+            $stem = $this->queryIdFromFile($file, $ext, $fakeDir);
             if (! isset($knownIds[$stem])) {
-                throw new UnknownFakeJsonException($basename, $this->fakeDir);
+                throw new UnknownFakeJsonException($basename, $fakeDir);
             }
         }
     }
 
-    private function queryIdFromFile(SplFileInfo $file, string $ext): string
+    private function queryIdFromFile(SplFileInfo $file, string $ext, string $fakeDir): string
     {
-        $relative = substr($file->getPathname(), strlen($this->fakeDir) + 1);
+        $relative = substr($file->getPathname(), strlen($fakeDir) + 1);
         $queryId = substr($relative, 0, -strlen('.' . $ext));
 
         return str_replace(DIRECTORY_SEPARATOR, '/', $queryId);

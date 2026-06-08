@@ -117,6 +117,7 @@ Ray.MediaQuery SQL execution with executable fixture vocabulary:
 - [ ] Create release PR.
 
 ## Errors Encountered
+
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | `composer crc` reports `phpDocumentor\Reflection\DocBlockFactory*` and `Ray\Aop\Method*` as unknown symbols | Baseline release check | Add direct dependencies or adjust code so the package declares what it uses. |

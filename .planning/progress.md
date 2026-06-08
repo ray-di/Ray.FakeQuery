@@ -40,6 +40,7 @@
 - Implement Ray.MediaQuery 1.1 result support in priority order.
 
 ## Test Results
+
 | Date | Command | Result | Notes |
 |------|---------|--------|-------|
 | 2026-05-15 | `composer tests` | pass | phpcs, phpstan, psalm, phpunit passed. |
