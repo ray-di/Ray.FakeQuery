@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ray\FakeQuery;
 
 use Override;
-use PDO;
+use Aura\Sql\ExtendedPdo;
 use PDOStatement;
 use Ray\Aop\MethodInterceptor;
 use Ray\Aop\MethodInvocation;
@@ -130,11 +130,11 @@ final class FakeQueryInterceptor implements MethodInterceptor
         );
         assert(is_array($rows));
 
-        $pdo = new PDO('sqlite::memory:');
+        $pdo = new ExtendedPdo('sqlite::memory:');
         $statement = $pdo->query('SELECT 1');
         assert($statement instanceof PDOStatement);
 
-        return $postQueryClass::fromContext(new PostQueryContext($statement, new FakeQueryPdo($pdo), $values, $rows));
+        return $postQueryClass::fromContext(new PostQueryContext($statement, $pdo, $values, $rows));
     }
 
     /**

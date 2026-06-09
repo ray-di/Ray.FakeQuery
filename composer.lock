@@ -4,25 +4,25 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "851e6e7ec0dc1d3eed8a04b0e75b42f2",
+    "content-hash": "647f31370c0a037c3d68d1c70032b6da",
     "packages": [
         {
             "name": "aura/sql",
-            "version": "5.0.3",
+            "version": "6.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/auraphp/Aura.Sql.git",
-                "reference": "fd7a6dd1c9d2a1da5754c50f287f8be8a27db0e7"
+                "reference": "0f4ac7a11b435a9854a28d686e7269ebe7582ec8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/auraphp/Aura.Sql/zipball/fd7a6dd1c9d2a1da5754c50f287f8be8a27db0e7",
-                "reference": "fd7a6dd1c9d2a1da5754c50f287f8be8a27db0e7",
+                "url": "https://api.github.com/repos/auraphp/Aura.Sql/zipball/0f4ac7a11b435a9854a28d686e7269ebe7582ec8",
+                "reference": "0f4ac7a11b435a9854a28d686e7269ebe7582ec8",
                 "shasum": ""
             },
             "require": {
                 "ext-pdo": "*",
-                "php": ">=8.1",
+                "php": "^8.4",
                 "psr/log": "^1.0 || ^2.0 || ^3.0"
             },
             "require-dev": {
@@ -60,9 +60,9 @@
             ],
             "support": {
                 "issues": "https://github.com/auraphp/Aura.Sql/issues",
-                "source": "https://github.com/auraphp/Aura.Sql/tree/5.0.3"
+                "source": "https://github.com/auraphp/Aura.Sql/tree/6.0.1"
             },
-            "time": "2025-01-22T06:39:17+00:00"
+            "time": "2026-01-05T05:21:45+00:00"
         },
         {
             "name": "aura/sqlquery",
@@ -2985,15 +2985,15 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.2"
+        "php": "^8.4"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "platform-overrides": {
-        "php": "8.2.0"
+        "php": "8.4.0"
     },
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.2.0"
 }
