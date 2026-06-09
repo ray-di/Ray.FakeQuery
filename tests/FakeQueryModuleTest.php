@@ -7,20 +7,33 @@ namespace Ray\FakeQuery;
 use PHPUnit\Framework\TestCase;
 use Ray\Di\AbstractModule;
 use Ray\Di\Injector;
+use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
+use Ray\FakeQuery\Query\FactoryTodoQueryInterface;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
+use Ray\FakeQuery\Query\TodoSelectionQueryInterface;
 use Ray\FakeQuery\Query\UserQueryInterface;
+use Ray\FakeQuery\Result\TodoSelection;
+use Ray\MediaQuery\DbQueryConfig;
+use Ray\MediaQuery\MediaQueryModule;
+use Ray\MediaQuery\Queries;
+use Ray\MediaQuery\SqlQueryInterface;
+
+use const PATH_SEPARATOR;
 
 final class FakeQueryModuleTest extends TestCase
 {
     private TodoQueryInterface $query;
     private TodoCommandInterface $command;
     private UserQueryInterface $userQuery;
+    private FactoryTodoQueryInterface $factoryQuery;
+    private TodoSelectionQueryInterface $selectionQuery;
 
     protected function setUp(): void
     {
@@ -52,6 +65,14 @@ final class FakeQueryModuleTest extends TestCase
         /** @var UserQueryInterface $userQuery */
         $userQuery = $injector->getInstance(UserQueryInterface::class);
         $this->userQuery = $userQuery;
+
+        /** @var FactoryTodoQueryInterface $factoryQuery */
+        $factoryQuery = $injector->getInstance(FactoryTodoQueryInterface::class);
+        $this->factoryQuery = $factoryQuery;
+
+        /** @var TodoSelectionQueryInterface $selectionQuery */
+        $selectionQuery = $injector->getInstance(TodoSelectionQueryInterface::class);
+        $this->selectionQuery = $selectionQuery;
     }
 
     public function testItemReturnsEntity(): void
@@ -105,6 +126,99 @@ final class FakeQueryModuleTest extends TestCase
         $this->assertContainsOnlyInstancesOf(UserEntity::class, $list);
         $this->assertSame('Bob', $list[1]->userName);
         $this->assertFalse($list[1]->isActive);
+    }
+
+    public function testStaticFactoryHydration(): void
+    {
+        $todo = $this->factoryQuery->staticItem();
+
+        $this->assertInstanceOf(FactoryTodoEntity::class, $todo);
+        $this->assertSame('01HVFACTORY1', $todo->todoId);
+        $this->assertSame('Static factory item', $todo->todoTitle);
+        $this->assertSame('2026-01-01 00:00:00', $todo->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testInjectedFactoryHydration(): void
+    {
+        $todo = $this->factoryQuery->injectedItem();
+
+        $this->assertInstanceOf(FactoryTodoEntity::class, $todo);
+        $this->assertSame('01HVFACTORY2', $todo->todoId);
+        $this->assertSame('Injected factory item', $todo->todoTitle);
+        $this->assertSame('2026-01-02 00:00:00', $todo->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testStaticFactoryListHydration(): void
+    {
+        $list = $this->factoryQuery->staticList();
+
+        $this->assertContainsOnlyInstancesOf(FactoryTodoEntity::class, $list);
+        $this->assertSame('01HVFACTORY3', $list[0]->todoId);
+        $this->assertSame('2026-01-04 00:00:00', $list[1]->createdAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testNestedQueryIdFixture(): void
+    {
+        $todo = $this->factoryQuery->nestedStaticItem();
+
+        $this->assertSame('01HVNESTED1', $todo->todoId);
+        $this->assertSame('Nested static factory item', $todo->todoTitle);
+    }
+
+    public function testMissingFactoryClassThrows(): void
+    {
+        $this->expectException(InvalidFactoryException::class);
+        $this->expectExceptionMessage('Ray\FakeQuery\Factory\MissingTodoFactory::factory()');
+
+        $this->factoryQuery->missingFactoryClass();
+    }
+
+    public function testMissingFactoryMethodThrows(): void
+    {
+        $this->expectException(InvalidFactoryException::class);
+        $this->expectExceptionMessage('Ray\FakeQuery\Factory\MissingMethodTodoFactory::factory()');
+
+        $this->factoryQuery->missingFactoryMethod();
+    }
+
+    public function testPostQuerySelectionHydratesFactoryRows(): void
+    {
+        $selection = $this->selectionQuery->list();
+
+        $this->assertInstanceOf(TodoSelection::class, $selection);
+        $this->assertCount(2, $selection);
+        $this->assertSame(['Static factory list 1', 'Static factory list 2'], $selection->titles());
+        $this->assertSame([], $selection->values);
+    }
+
+    public function testFakeQueryOverridesExistingMediaQueryInterceptors(): void
+    {
+        $fakeDir = __DIR__ . '/Fake';
+        $interfaceDir = __DIR__ . '/Fake/Query';
+        $module = new class ($interfaceDir) extends AbstractModule {
+            public function __construct(private readonly string $interfaceDir)
+            {
+                parent::__construct();
+            }
+
+            protected function configure(): void
+            {
+                $this->install(new MediaQueryModule(
+                    Queries::fromDir($this->interfaceDir),
+                    [new DbQueryConfig(__DIR__ . '/FakeSql')],
+                ));
+                $this->bind(SqlQueryInterface::class)->to(ThrowingSqlQuery::class);
+            }
+        };
+        $module->override(new FakeQueryModule($fakeDir, $interfaceDir));
+        $injector = new Injector($module, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
     }
 
     public function testUnionNullableWithMissingFileReturnsNull(): void
@@ -175,6 +289,139 @@ final class FakeQueryModuleTest extends TestCase
         new FakeQueryConfig('/nonexistent/dir');
     }
 
+    public function testFakeDirTrailingSeparatorsAreNormalized(): void
+    {
+        $slashConfig = new FakeQueryConfig(__DIR__ . '/Fake/');
+        $backslashConfig = new FakeQueryConfig(__DIR__ . '/Fake\\');
+
+        $this->assertSame(__DIR__ . '/Fake', $slashConfig->fakeDir);
+        $this->assertSame(__DIR__ . '/Fake', $backslashConfig->fakeDir);
+    }
+
+    public function testFakeQueryModuleAcceptsTrailingFakeDirSeparator(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake/',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryConfigAcceptsMultipleDirectories(): void
+    {
+        $config = new FakeQueryConfig([__DIR__ . '/Fake/', __DIR__ . '/FakeSecondary/']);
+
+        $this->assertSame([__DIR__ . '/Fake', __DIR__ . '/FakeSecondary'], $config->fakeDirs);
+        $this->assertSame(__DIR__ . '/Fake' . PATH_SEPARATOR . __DIR__ . '/FakeSecondary', $config->fakeDir);
+    }
+
+    public function testFakeQueryModuleAcceptsQueryClassList(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake',
+                    [
+                        TodoQueryInterface::class,
+                        TodoCommandInterface::class,
+                        UserQueryInterface::class,
+                        FactoryTodoQueryInterface::class,
+                        TodoSelectionQueryInterface::class,
+                    ],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryModuleAcceptsQueriesObject(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/Fake',
+                    Queries::fromClasses([
+                        TodoQueryInterface::class,
+                        TodoCommandInterface::class,
+                        UserQueryInterface::class,
+                        FactoryTodoQueryInterface::class,
+                        TodoSelectionQueryInterface::class,
+                    ]),
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+
+        $todo = $query->item('01HVXXXXXX0008');
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('Write Be Framework tutorial', $todo->todoTitle);
+    }
+
+    public function testFakeQueryModuleReadsMultipleFakeDirsAndFiltersParams(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    [__DIR__ . '/FakeEmpty', __DIR__ . '/FakeSecondary'],
+                    [TodoQueryInterface::class],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $list = $query->listByStatus(true, limit: 1, offset: 1);
+
+        $this->assertCount(1, $list);
+        $this->assertSame('01HVSTATUS3', $list[0]->todoId);
+        $this->assertTrue($list[0]->isCompleted);
+    }
+
+    public function testFakeQueryModuleSelectsRowFromJsonlWhenJsonIsMissing(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeSecondary',
+                    [TodoQueryInterface::class],
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        $todo = $query->firstByStatus(false);
+
+        $this->assertInstanceOf(TodoEntity::class, $todo);
+        $this->assertSame('01HVSTATUS1', $todo->todoId);
+        $this->assertFalse($todo->isCompleted);
+    }
+
     public function testUnknownFakeJsonFileThrows(): void
     {
         $this->expectException(UnknownFakeJsonException::class);
@@ -185,6 +432,22 @@ final class FakeQueryModuleTest extends TestCase
             {
                 $this->install(new FakeQueryModule(
                     __DIR__ . '/FakeUnknown',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+    }
+
+    public function testUnknownNestedFakeJsonFileThrows(): void
+    {
+        $this->expectException(UnknownFakeJsonException::class);
+        $this->expectExceptionMessage('stray_query.json');
+
+        new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeUnknownNested',
                     __DIR__ . '/Fake/Query',
                 ));
             }

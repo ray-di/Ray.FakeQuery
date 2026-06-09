@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 1.x
+      - '*.x'
+      - 'codex/**'
+
+jobs:
+  unit:
+    name: Unit PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php:
+          - '8.2'
+          - '8.3'
+          - '8.4'
+          - '8.5'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, pdo, dom, xml, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, pdo, dom, xml, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies and tools
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run style, static analysis, and tests
+        run: composer tests
+
+      - name: Check declared dependencies
+        run: composer crc

@@ -4,34 +4,56 @@ declare(strict_types=1);
 
 namespace Ray\FakeQuery;
 
+use Ray\Di\InjectorInterface;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
+use Ray\MediaQuery\Annotation\DbQuery;
+use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
 use Ray\MediaQuery\StringCase;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionParameter;
 
 use function array_key_exists;
 use function array_map;
+use function array_values;
 use function assert;
+use function class_exists;
 use function is_array;
 use function method_exists;
 
 /** @psalm-import-type JsonRow from Types */
 final class JsonHydrator
 {
-    /** @param class-string|null $entityClass */
-    public function hydrate(mixed $data, string|null $entityClass, bool $isRow): mixed
-    {
-        if ($isRow) {
-            return $this->hydrateRow($data, $entityClass);
-        }
-
-        return $this->hydrateRowList($data, $entityClass);
+    public function __construct(
+        #[FactoryMethod]
+        private readonly string $factoryMethod,
+        private readonly InjectorInterface $injector,
+    ) {
     }
 
     /** @param class-string|null $entityClass */
-    private function hydrateRow(mixed $data, string|null $entityClass): mixed
+    public function hydrate(mixed $data, string|null $entityClass, bool $isRow, DbQuery|null $dbQuery = null): mixed
+    {
+        if ($isRow) {
+            return $this->hydrateRow($data, $entityClass, $dbQuery);
+        }
+
+        return $this->hydrateRowList($data, $entityClass, $dbQuery);
+    }
+
+    /** @param class-string|null $entityClass */
+    private function hydrateRow(mixed $data, string|null $entityClass, DbQuery|null $dbQuery): mixed
     {
         if ($data === null) {
             return null; // @codeCoverageIgnore json_decode returns null only for "null" content
+        }
+
+        $factory = $this->factory($dbQuery);
+        if ($factory !== null) {
+            assert(is_array($data));
+            /** @var JsonRow $data */
+
+            return $factory($data);
         }
 
         if ($entityClass === null) {
@@ -45,8 +67,23 @@ final class JsonHydrator
     }
 
     /** @param class-string|null $entityClass */
-    private function hydrateRowList(mixed $data, string|null $entityClass): mixed
+    private function hydrateRowList(mixed $data, string|null $entityClass, DbQuery|null $dbQuery): mixed
     {
+        $factory = $this->factory($dbQuery);
+        if ($factory !== null) {
+            assert(is_array($data));
+
+            return array_map(
+                static function (mixed $row) use ($factory): mixed {
+                    assert(is_array($row));
+                    /** @var JsonRow $row */
+
+                    return $factory($row);
+                },
+                $data,
+            );
+        }
+
         if ($entityClass === null) {
             return $data; // @codeCoverageIgnore ReturnEntity always resolves entity for @return array<Entity>
         }
@@ -62,6 +99,33 @@ final class JsonHydrator
             },
             $data,
         );
+    }
+
+    /** @return (callable(JsonRow): mixed)|null */
+    private function factory(DbQuery|null $dbQuery): callable|null
+    {
+        if ($dbQuery === null || $dbQuery->factory === '') {
+            return null;
+        }
+
+        $factoryClass = $dbQuery->factory;
+        $factoryMethod = $this->factoryMethod;
+        if (! class_exists($factoryClass) || ! method_exists($factoryClass, $factoryMethod)) {
+            throw new InvalidFactoryException($factoryClass, $factoryMethod);
+        }
+
+        $method = new ReflectionMethod($factoryClass, $factoryMethod);
+        if (! $method->isPublic()) {
+            throw new InvalidFactoryException($factoryClass, $factoryMethod);
+        }
+
+        if ($method->isStatic()) {
+            return static fn (array $row): mixed => $method->invokeArgs(null, array_values($row));
+        }
+
+        $factory = $this->injector->getInstance($factoryClass);
+
+        return static fn (array $row): mixed => $method->invokeArgs($factory, array_values($row));
     }
 
     /**
