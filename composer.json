@@ -18,11 +18,13 @@
     ],
     "require": {
         "php": "^8.4",
+        "ext-pdo": "*",
+        "aura/sql": "^6.0",
         "phpdocumentor/reflection-docblock": "^6.0",
         "ray/aop": "^2.19",
         "ray/di": "^2.19",
-        "ray/media-query": "^1.1",
-        "aura/sql": "^6.0"
+        "ray/input-query": "^1.0",
+        "ray/media-query": "^1.1"
     },
     "require-dev": {
         "bamarni/composer-bin-plugin": "^1.8",
