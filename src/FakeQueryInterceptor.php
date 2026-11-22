@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ray\FakeQuery;
 
-use Override;
 use Aura\Sql\ExtendedPdo;
+use Override;
 use PDOStatement;
 use Ray\Aop\MethodInterceptor;
 use Ray\Aop\MethodInvocation;

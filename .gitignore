@@ -1,4 +1,5 @@
 /vendor/
+/composer.lock
 /vendor-bin/*/vendor/
 /build/
 /tests/tmp/
