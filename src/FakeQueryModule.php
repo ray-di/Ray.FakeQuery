@@ -15,11 +15,11 @@ use Ray\MediaQuery\ReturnEntity;
 use Ray\MediaQuery\ReturnEntityInterface;
 use ReflectionClass;
 
+use function array_merge;
 use function basename;
 use function glob;
 use function pathinfo;
 
-use const GLOB_BRACE;
 use const GLOB_NOSORT;
 use const PATHINFO_EXTENSION;
 
@@ -61,8 +61,9 @@ final class FakeQueryModule extends AbstractModule
     {
         $knownIds = $this->collectDbQueryIds($classes);
 
-        $globResult = glob($this->fakeDir . '/*.{json,jsonl}', GLOB_NOSORT | GLOB_BRACE);
-        $files = $globResult === false ? [] : $globResult;
+        $jsonFiles = glob($this->fakeDir . '/*.json', GLOB_NOSORT);
+        $jsonlFiles = glob($this->fakeDir . '/*.jsonl', GLOB_NOSORT);
+        $files = array_merge($jsonFiles === false ? [] : $jsonFiles, $jsonlFiles === false ? [] : $jsonlFiles);
         foreach ($files as $file) {
             $basename = basename($file);
             $ext = pathinfo($file, PATHINFO_EXTENSION);
