@@ -10,6 +10,8 @@
     ],
     "require": {
         "php": "^8.2",
+        "phpdocumentor/reflection-docblock": "^5.3 || ^6.0",
+        "ray/aop": "^2.18",
         "ray/di": "^2.18",
         "ray/media-query": "^1.0"
     },

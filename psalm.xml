@@ -11,4 +11,11 @@
     <projectFiles>
         <directory name="src" />
     </projectFiles>
+    <issueHandlers>
+        <InvalidArgument>
+            <errorLevel type="suppress">
+                <referencedFunction name="Ray\Aop\Pointcut::__construct" />
+            </errorLevel>
+        </InvalidArgument>
+    </issueHandlers>
 </psalm>
