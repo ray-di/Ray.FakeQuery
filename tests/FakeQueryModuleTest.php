@@ -14,6 +14,7 @@ use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
+use Ray\FakeQuery\Factory\InjectedTodoFactory;
 use Ray\FakeQuery\Query\FactoryTodoQueryInterface;
 use Ray\FakeQuery\Query\TodoCommandInterface;
 use Ray\FakeQuery\Query\TodoQueryInterface;
@@ -51,6 +52,7 @@ final class FakeQueryModuleTest extends TestCase
             protected function configure(): void
             {
                 $this->install(new FakeQueryModule($this->fakeDir, $this->interfaceDir));
+                $this->bind(InjectedTodoFactory::class);
             }
         }, __DIR__ . '/tmp');
 

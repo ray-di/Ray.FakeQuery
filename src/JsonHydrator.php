@@ -6,6 +6,7 @@ namespace Ray\FakeQuery;
 
 use Ray\Di\InjectorInterface;
 use Ray\FakeQuery\Exception\InvalidFactoryException;
+use Ray\FakeQuery\Exception\MissingFakeFieldException;
 use Ray\MediaQuery\Annotation\DbQuery;
 use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
 use Ray\MediaQuery\StringCase;
@@ -45,7 +46,7 @@ final class JsonHydrator
     private function hydrateRow(mixed $data, string|null $entityClass, DbQuery|null $dbQuery): mixed
     {
         if ($data === null) {
-            return null; // @codeCoverageIgnore json_decode returns null only for "null" content
+            return null;
         }
 
         $factory = $this->factory($dbQuery);
@@ -85,7 +86,7 @@ final class JsonHydrator
         }
 
         if ($entityClass === null) {
-            return $data; // @codeCoverageIgnore ReturnEntity always resolves entity for @return array<Entity>
+            return $data;
         }
 
         assert(is_array($data));
@@ -196,6 +197,13 @@ final class JsonHydrator
             return $param->getDefaultValue();
         }
 
-        return null; // @codeCoverageIgnore all constructor params should match JSON keys or be optional
+        if ($param->allowsNull()) {
+            return null;
+        }
+
+        $class = $param->getDeclaringClass();
+        assert($class !== null);
+
+        throw new MissingFakeFieldException($class->getName(), $name, $snake);
     }
 }

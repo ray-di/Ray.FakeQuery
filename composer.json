@@ -19,6 +19,7 @@
     "require": {
         "php": "^8.4",
         "ext-pdo": "*",
+        "ext-pdo_sqlite": "*",
         "aura/sql": "^6.0",
         "phpdocumentor/reflection-docblock": "^6.0",
         "ray/aop": "^2.20",

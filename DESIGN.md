@@ -6,17 +6,20 @@ with JSON or JSONL fixture data.
 
 ## Scope
 
-The 1.0 scope is intentionally limited to select-style fake responses:
+The current scope is intentionally limited to select-style fake responses:
 
 - row and nullable row responses from `<query_id>.json`
 - row list responses from `<query_id>.jsonl`
 - `void` command methods as no-op methods
-- constructor-based `PostQueryInterface` result wrappers
+- `PostQueryInterface` select result wrappers, built through `fromContext()`
+  with hydrated fixture rows; the context's statement and connection are an
+  idle in-memory SQLite placeholder
 - static and injected factory hydration via `#[DbQuery(factory: ...)]`
 
-DML metadata result objects such as `AffectedRows` and `InsertedRow` are tracked
-separately for a later release. They should remain fixture-driven and must not
-turn FakeQuery into a fake PDO or mutable in-memory database.
+Pagination (`#[Pager]` / `PagesInterface`) and DML metadata result objects such
+as `AffectedRows` and `InsertedRow` throw `UnsupportedQueryException` until they
+get a fixture design. They should remain fixture-driven and must not turn
+FakeQuery into a fake PDO or mutable in-memory database.
 
 ## Module Replacement
 
@@ -24,21 +27,24 @@ turn FakeQuery into a fake PDO or mutable in-memory database.
 interface directory to null-object proxies, the same proxy surface used by
 Ray.MediaQuery.
 
-For override use, FakeQuery does not compete with MediaQuery pointcuts by
-priority. It binds the MediaQuery interceptor token itself:
+Ray.Aop keeps only the last merged pointcut per annotation, so FakeQuery cannot
+rely on its own `#[DbQuery]` pointcut winning. It binds its interceptor and also
+takes over the MediaQuery interceptor token:
 
 ```php
 $this->bindInterceptor(
     $this->matcher->any(),
     $this->matcher->annotatedWith(DbQuery::class),
-    [DbQueryInterceptor::class],
+    [FakeQueryInterceptor::class],
 );
 $this->bind(DbQueryInterceptor::class)->to(FakeQueryInterceptor::class);
 ```
 
-If an application already installed `MediaQueryModule`, the existing `#[DbQuery]`
-pointcut may remain active. Because `DbQueryInterceptor` resolves to
-`FakeQueryInterceptor`, SQL execution is still replaced by fixtures.
+When FakeQuery's pointcut wins, `FakeQueryInterceptor` runs directly. When
+MediaQuery's pointcut wins, its `DbQueryInterceptor` resolves to
+`FakeQueryInterceptor`. Either way fixtures replace SQL execution, whether the
+modules are installed in either order, nested, or combined with `override()`
+(see `ModuleCompositionTest`).
 
 ## Fixture Vocabulary
 
@@ -63,7 +69,8 @@ Default entity hydration follows Ray.MediaQuery conventions:
 
 - JSON keys may use `snake_case`
 - constructor parameters and object properties use `camelCase`
-- constructor defaults are respected
+- constructor defaults are respected; a missing nullable parameter gets `null`,
+  and any other missing parameter throws `MissingFakeFieldException`
 - raw `array` return types receive raw fixture rows
 
 When `#[DbQuery(factory: SomeFactory::class)]` is used, FakeQuery calls the

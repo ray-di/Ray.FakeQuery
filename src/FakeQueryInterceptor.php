@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace Ray\FakeQuery;
 
 use Aura\Sql\ExtendedPdo;
+use JsonException;
 use Override;
 use PDOStatement;
 use Ray\Aop\MethodInterceptor;
 use Ray\Aop\MethodInvocation;
+use Ray\Aop\ReflectionMethod;
 use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\InvalidFakeJsonException;
+use Ray\FakeQuery\Exception\UnsupportedQueryException;
 use Ray\MediaQuery\Annotation\DbQuery;
+use Ray\MediaQuery\Annotation\Pager;
+use Ray\MediaQuery\PagesInterface;
 use Ray\MediaQuery\ParamConverterInterface;
 use Ray\MediaQuery\ParamInjectorInterface;
+use Ray\MediaQuery\Result\AffectedRows;
+use Ray\MediaQuery\Result\InsertedRow;
 use Ray\MediaQuery\Result\PostQueryContext;
 use Ray\MediaQuery\Result\PostQueryInterface;
 use Ray\MediaQuery\ReturnEntityInterface;
@@ -30,6 +38,7 @@ use function class_exists;
 use function explode;
 use function file_exists;
 use function file_get_contents;
+use function is_a;
 use function is_array;
 use function is_bool;
 use function is_scalar;
@@ -45,6 +54,8 @@ use const JSON_THROW_ON_ERROR;
  */
 final class FakeQueryInterceptor implements MethodInterceptor
 {
+    private ExtendedPdo|null $placeholderPdo = null;
+
     public function __construct(
         private readonly FakeQueryConfig $config,
         private readonly JsonHydrator $hydrator,
@@ -67,6 +78,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
             return null;
         }
 
+        $this->assertSupported($method, $dbQuery, $returnType);
         $values = $this->values($invocation);
 
         /** @var class-string|null $entityClass */
@@ -84,7 +96,11 @@ final class FakeQueryInterceptor implements MethodInterceptor
             || ($returnType instanceof ReflectionNamedType && $returnType->getName() !== 'array');
 
         if ($isRow) {
-            $data = $this->readRow($dbQuery, $values);
+            if ($this->hasFile($dbQuery, '.json')) {
+                return $this->hydrator->hydrate($this->readJsonRow($dbQuery), $entityClass, true, $dbQuery);
+            }
+
+            $data = $this->readJsonlRow($dbQuery, $values);
             if ($data === null && $this->isNullable($returnType)) {
                 return null;
             }
@@ -99,6 +115,23 @@ final class FakeQueryInterceptor implements MethodInterceptor
         $data = $this->readRows($dbQuery, $values);
 
         return $this->hydrator->hydrate($data, $entityClass, false, $dbQuery);
+    }
+
+    private function assertSupported(ReflectionMethod $method, DbQuery $dbQuery, ReflectionType|null $returnType): void
+    {
+        if ($method->getAnnotation(Pager::class) instanceof Pager || $this->returns($returnType, PagesInterface::class)) {
+            throw new UnsupportedQueryException($dbQuery->id, $method->name, '#[Pager] / PagesInterface results');
+        }
+
+        if ($this->returns($returnType, AffectedRows::class) || $this->returns($returnType, InsertedRow::class)) {
+            throw new UnsupportedQueryException($dbQuery->id, $method->name, 'DML metadata results (AffectedRows, InsertedRow)');
+        }
+    }
+
+    /** @param class-string $class */
+    private function returns(ReflectionType|null $returnType, string $class): bool
+    {
+        return $returnType instanceof ReflectionNamedType && is_a($returnType->getName(), $class, true);
     }
 
     /**
@@ -122,19 +155,32 @@ final class FakeQueryInterceptor implements MethodInterceptor
      */
     private function selectPostQuery(string $postQueryClass, DbQuery $dbQuery, string|null $entityClass, array $values): PostQueryInterface
     {
-        $rows = $this->hydrator->hydrate(
-            $this->readRows($dbQuery, $values),
-            $dbQuery->factory === '' ? null : $entityClass,
-            false,
-            $dbQuery,
-        );
+        $rows = $this->hydrator->hydrate($this->readRows($dbQuery, $values), $entityClass, false, $dbQuery);
         assert(is_array($rows));
 
-        $pdo = new ExtendedPdo('sqlite::memory:');
+        // fromContext() needs a statement and a connection; an in-memory SQLite one stands in for the database.
+        $pdo = $this->placeholderPdo ??= new ExtendedPdo('sqlite::memory:');
         $statement = $pdo->query('SELECT 1');
         assert($statement instanceof PDOStatement);
 
         return $postQueryClass::fromContext(new PostQueryContext($statement, $pdo, $values, $rows));
+    }
+
+    /** @return JsonRow|null */
+    private function readJsonRow(DbQuery $dbQuery): array|null
+    {
+        $file = $this->fixtureFile($dbQuery, '.json');
+        $data = $this->decode($this->readContent($file), $file);
+        if ($data === null) {
+            return null;
+        }
+
+        if (! is_array($data)) {
+            throw new InvalidFakeJsonException($file, 'expected a JSON object or null');
+        }
+
+        /** @var JsonRow $data */
+        return $this->stripParams($data);
     }
 
     /**
@@ -142,20 +188,13 @@ final class FakeQueryInterceptor implements MethodInterceptor
      *
      * @return JsonRow|null
      */
-    private function readRow(DbQuery $dbQuery, array $values): array|null
+    private function readJsonlRow(DbQuery $dbQuery, array $values): array|null
     {
-        if ($this->hasFile($dbQuery, '.json')) {
-            /** @var JsonRow $data */
-            $data = json_decode($this->readContent($dbQuery, '.json'), true, 512, JSON_THROW_ON_ERROR);
-
-            return $this->stripParams($data);
-        }
-
         if (! $this->hasFile($dbQuery, '.jsonl')) {
             return null;
         }
 
-        $rows = $this->selectRows($this->parseJsonl($this->readContent($dbQuery, '.jsonl')), $values);
+        $rows = $this->selectRows($this->readJsonl($dbQuery), $values);
         $row = $rows[0] ?? null;
 
         return $row === null ? null : $this->stripParams($row);
@@ -168,7 +207,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
      */
     private function readRows(DbQuery $dbQuery, array $values): array
     {
-        $rows = $this->parseJsonl($this->readContent($dbQuery, '.jsonl'));
+        $rows = $this->readJsonl($dbQuery);
 
         $selected = array_map(
             fn (array $row): array => $this->stripParams($row),
@@ -178,19 +217,33 @@ final class FakeQueryInterceptor implements MethodInterceptor
         return $this->applyWindow($selected, $values);
     }
 
-    private function readContent(DbQuery $dbQuery, string $ext): string
+    private function fixtureFile(DbQuery $dbQuery, string $ext): string
     {
-        $jsonFile = $this->findFile($dbQuery, $ext);
-        if ($jsonFile === null) {
+        $file = $this->findFile($dbQuery, $ext);
+        if ($file === null) {
             throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir);
         }
 
-        $content = file_get_contents($jsonFile);
+        return $file;
+    }
+
+    private function readContent(string $file): string
+    {
+        $content = file_get_contents($file);
         if ($content === false) {
-            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir); // @codeCoverageIgnore — file_exists passed
+            throw new FakeJsonNotFoundException($file, $this->config->fakeDir); // @codeCoverageIgnore — file_exists passed
         }
 
         return $content;
+    }
+
+    private function decode(string $json, string $location): mixed
+    {
+        try {
+            return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new InvalidFakeJsonException($location, $e->getMessage(), $e);
+        }
     }
 
     private function findFile(DbQuery $dbQuery, string $ext): string|null
@@ -330,25 +383,26 @@ final class FakeQueryInterceptor implements MethodInterceptor
     }
 
     /** @return JsonRowList */
-    private function parseJsonl(string $content): array
+    private function readJsonl(DbQuery $dbQuery): array
     {
-        $trimmed = trim($content);
-        if ($trimmed === '') {
-            return [];
+        $file = $this->fixtureFile($dbQuery, '.jsonl');
+        $rows = [];
+        foreach (explode("\n", $this->readContent($file)) as $index => $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $location = $file . ' line ' . ($index + 1);
+            $row = $this->decode($line, $location);
+            if (! is_array($row)) {
+                throw new InvalidFakeJsonException($location, 'expected a JSON object');
+            }
+
+            $rows[] = $row;
         }
 
-        $lines = array_values(array_filter(
-            explode("\n", $trimmed),
-            static fn (string $line): bool => $line !== '',
-        ));
-
-        /** @var JsonRowList $result */
-        $result = array_map(
-            static fn (string $line): mixed => json_decode($line, true, 512, JSON_THROW_ON_ERROR),
-            $lines,
-        );
-
-        return $result;
+        /** @var JsonRowList $rows */
+        return $rows;
     }
 
     private function isNullable(ReflectionType|null $returnType): bool
