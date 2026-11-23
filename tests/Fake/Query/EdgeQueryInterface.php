@@ -25,6 +25,9 @@ interface EdgeQueryInterface
     #[DbQuery('scalar_item')]
     public function scalarItem(): TodoEntity|null;
 
+    #[DbQuery('array_item')]
+    public function arrayItem(): TodoEntity|null;
+
     /** @return array<TodoEntity> */
     #[DbQuery('blank_line_list')]
     public function blankLineList(): array;
@@ -40,6 +43,10 @@ interface EdgeQueryInterface
     /** @return array<TodoEntity> */
     #[DbQuery('scalar_line_list')]
     public function scalarLineList(): array;
+
+    /** @return list<array<string, mixed>> */
+    #[DbQuery('array_line_list')]
+    public function arrayLineList(): array;
 
     #[DbQuery('missing_field_user')]
     public function missingFieldUser(): UserEntity;

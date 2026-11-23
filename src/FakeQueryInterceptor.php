@@ -44,6 +44,8 @@ use function is_bool;
 use function is_scalar;
 use function is_subclass_of;
 use function json_decode;
+use function ltrim;
+use function str_starts_with;
 use function trim;
 
 use const JSON_THROW_ON_ERROR;
@@ -170,17 +172,9 @@ final class FakeQueryInterceptor implements MethodInterceptor
     private function readJsonRow(DbQuery $dbQuery): array|null
     {
         $file = $this->fixtureFile($dbQuery, '.json');
-        $data = $this->decode($this->readContent($file), $file);
-        if ($data === null) {
-            return null;
-        }
+        $row = $this->decodeRow($this->readContent($file), $file, true);
 
-        if (! is_array($data)) {
-            throw new InvalidFakeJsonException($file, 'expected a JSON object or null');
-        }
-
-        /** @var JsonRow $data */
-        return $this->stripParams($data);
+        return $row === null ? null : $this->stripParams($row);
     }
 
     /**
@@ -237,13 +231,26 @@ final class FakeQueryInterceptor implements MethodInterceptor
         return $content;
     }
 
-    private function decode(string $json, string $location): mixed
+    /** @return ($nullable is true ? JsonRow|null : JsonRow) */
+    private function decodeRow(string $json, string $location, bool $nullable): array|null
     {
         try {
-            return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
             throw new InvalidFakeJsonException($location, $e->getMessage(), $e);
         }
+
+        if ($data === null && $nullable) {
+            return null;
+        }
+
+        // Associative decoding turns JSON arrays into PHP arrays too; only an object starts with "{".
+        if (! is_array($data) || ! str_starts_with(ltrim($json), '{')) {
+            throw new InvalidFakeJsonException($location, $nullable ? 'expected a JSON object or null' : 'expected a JSON object');
+        }
+
+        /** @var JsonRow $data */
+        return $data;
     }
 
     private function findFile(DbQuery $dbQuery, string $ext): string|null
@@ -392,16 +399,9 @@ final class FakeQueryInterceptor implements MethodInterceptor
                 continue;
             }
 
-            $location = $file . ' line ' . ($index + 1);
-            $row = $this->decode($line, $location);
-            if (! is_array($row)) {
-                throw new InvalidFakeJsonException($location, 'expected a JSON object');
-            }
-
-            $rows[] = $row;
+            $rows[] = $this->decodeRow($line, $file . ' line ' . ($index + 1), false);
         }
 
-        /** @var JsonRowList $rows */
         return $rows;
     }
 

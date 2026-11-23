@@ -303,7 +303,8 @@ final class FakeQueryModuleTest extends TestCase
         } catch (FakeJsonNotFoundException) {
         }
 
-        $this->assertNull($query->item('1'));
+        $this->expectException(FakeJsonNotFoundException::class);
+        $query->list();
     }
 
     public function testInvalidFakeDirThrows(): void

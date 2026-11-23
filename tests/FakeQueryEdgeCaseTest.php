@@ -46,6 +46,14 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->query->scalarItem();
     }
 
+    public function testJsonArrayRowThrows(): void
+    {
+        $this->expectException(InvalidFakeJsonException::class);
+        $this->expectExceptionMessage('array_item.json: expected a JSON object or null');
+
+        $this->query->arrayItem();
+    }
+
     public function testBlankJsonlLinesAreSkipped(): void
     {
         $list = $this->query->blankLineList();
@@ -77,6 +85,14 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->expectExceptionMessage('scalar_line_list.jsonl line 1: expected a JSON object');
 
         $this->query->scalarLineList();
+    }
+
+    public function testJsonlArrayLineThrows(): void
+    {
+        $this->expectException(InvalidFakeJsonException::class);
+        $this->expectExceptionMessage('array_line_list.jsonl line 2: expected a JSON object');
+
+        $this->query->arrayLineList();
     }
 
     public function testMissingRequiredFieldThrows(): void
