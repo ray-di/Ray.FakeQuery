@@ -8,10 +8,14 @@ use PHPUnit\Framework\TestCase;
 use Ray\Di\Injector;
 use Ray\FakeQuery\Entity\NoteEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
+use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\FakeQuery\Exception\InvalidFakeJsonException;
 use Ray\FakeQuery\Exception\MissingFakeFieldException;
 use Ray\FakeQuery\Exception\UnsupportedQueryException;
 use Ray\FakeQuery\Query\EdgeQueryInterface;
+
+use function array_map;
 
 final class FakeQueryEdgeCaseTest extends TestCase
 {
@@ -151,5 +155,37 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->expectExceptionMessage('DML metadata results');
 
         $this->query->insert();
+    }
+
+    public function testNonNullableRowWithoutFixtureThrows(): void
+    {
+        $this->expectException(FakeJsonNotFoundException::class);
+        $this->expectExceptionMessage('missing_item.json');
+
+        $this->query->missingItem();
+    }
+
+    public function testRowsWithUnmatchedOrNonScalarParamsAreFilteredOut(): void
+    {
+        $ids = array_map(static fn (TodoEntity $todo): string => $todo->todoId, $this->query->filteredList(true));
+
+        $this->assertSame(['A', 'D'], $ids);
+    }
+
+    public function testNegativeOffsetStartsAtTheFirstRow(): void
+    {
+        $this->assertCount(2, $this->query->filteredList(true, offset: -5));
+    }
+
+    public function testNegativeLimitReturnsNoRows(): void
+    {
+        $this->assertSame([], $this->query->filteredList(true, limit: -1));
+    }
+
+    public function testNonPublicFactoryMethodThrows(): void
+    {
+        $this->expectException(InvalidFactoryException::class);
+
+        $this->query->privateFactoryItem();
     }
 }

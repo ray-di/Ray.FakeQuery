@@ -224,8 +224,9 @@ final class FakeQueryInterceptor implements MethodInterceptor
     private function readContent(string $file): string
     {
         $content = file_get_contents($file);
+        // file_get_contents() fails only if the file vanished or became unreadable after findFile().
         if ($content === false) {
-            throw new FakeJsonNotFoundException($file, $this->config->fakeDir); // @codeCoverageIgnore — file_exists passed
+            throw new FakeJsonNotFoundException($file, $this->config->fakeDir); // @codeCoverageIgnore
         }
 
         return $content;
@@ -341,15 +342,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
     private function normalize(mixed $value): mixed
     {
-        if (is_bool($value)) {
-            return $value ? 1 : 0;
-        }
-
-        if (is_scalar($value) || $value === null) {
-            return $value;
-        }
-
-        return $value;
+        return is_bool($value) ? (int) $value : $value;
     }
 
     /**

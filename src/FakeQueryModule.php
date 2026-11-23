@@ -108,12 +108,8 @@ final class FakeQueryModule extends AbstractModule
             );
             foreach ($files as $file) {
                 assert($file instanceof SplFileInfo);
-                if (! $file->isFile()) {
-                    continue;
-                }
-
                 $ext = pathinfo($file->getPathname(), PATHINFO_EXTENSION);
-                if ($ext !== 'json' && $ext !== 'jsonl') {
+                if (! $file->isFile() || ($ext !== 'json' && $ext !== 'jsonl')) {
                     continue;
                 }
 

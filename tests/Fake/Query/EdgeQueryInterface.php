@@ -6,6 +6,7 @@ namespace Ray\FakeQuery\Query;
 
 use Ray\FakeQuery\Entity\NoteEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
+use Ray\FakeQuery\Factory\NonPublicMethodTodoFactory;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Result\RowSelection;
 use Ray\MediaQuery\Annotation\DbQuery;
@@ -71,4 +72,14 @@ interface EdgeQueryInterface
 
     #[DbQuery('todo_insert')]
     public function insert(): InsertedRow;
+
+    #[DbQuery('missing_item')]
+    public function missingItem(): TodoEntity;
+
+    /** @return array<TodoEntity> */
+    #[DbQuery('filtered_list')]
+    public function filteredList(bool $isCompleted, int $limit = 10, int $offset = 0): array;
+
+    #[DbQuery('private_factory_item', factory: NonPublicMethodTodoFactory::class)]
+    public function privateFactoryItem(): TodoEntity;
 }
