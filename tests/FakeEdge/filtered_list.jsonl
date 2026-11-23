@@ -1,0 +1,4 @@
+{"_params": {"isCompleted": true}, "todoId": "A"}
+{"_params": {"isCompleted": [true]}, "todoId": "B"}
+{"_params": {"unknown": 1}, "todoId": "C"}
+{"_params": {"isCompleted": true}, "todoId": "D"}

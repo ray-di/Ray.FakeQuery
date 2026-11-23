@@ -16,6 +16,13 @@ interface TodoQueryInterface
     #[DbQuery('todo_list')]
     public function list(): array;
 
+    /** @return array<TodoEntity> */
+    #[DbQuery('todo_by_status')]
+    public function listByStatus(bool $isCompleted, int $limit = 10, int $offset = 0): array;
+
+    #[DbQuery('todo_by_status', type: 'row')]
+    public function firstByStatus(bool $isCompleted): ?TodoEntity;
+
     /** @return array<string, mixed> */
     #[DbQuery('todo_item', type: 'row')]
     public function itemExplicitRow(string $todoId): array;
