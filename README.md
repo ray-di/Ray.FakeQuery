@@ -42,6 +42,8 @@ $this->install(new MediaQuerySqlModule($interfaceDir, $sqlDir));
 $this->install(new FakeQueryModule($fakeDir, $interfaceDir));
 ```
 
+When both modules end up in one injector, `FakeQueryModule` takes over `#[DbQuery]` methods whatever the install order, including `override()`.
+
 Create JSON files matching the query ID in `#[DbQuery]`:
 
 `var/fake/todo_item.json` — single entity (`?Entity`):
@@ -62,4 +64,15 @@ Create JSON files matching the query ID in `#[DbQuery]`:
 
 `void` methods require no file — they succeed silently as no-ops.
 
-JSON keys use `snake_case`; entity properties use `camelCase`. Conversion is automatic, matching Ray.MediaQuery behavior.
+JSON keys may be `snake_case` or `camelCase`; both map to `camelCase` entity properties.
+
+## Hydration differences from Ray.MediaQuery
+
+Ray.FakeQuery matches JSON keys to the entity by name, while Ray.MediaQuery hydrates PDO rows as they come. The results differ when column names and the entity disagree:
+
+| Entity | Ray.MediaQuery | Ray.FakeQuery |
+|---|---|---|
+| No constructor | Sets properties named exactly like the columns: `user_id` leaves `$userId` empty and creates a dynamic `$user_id` property | Converts each key to camelCase (`user_id` → `$userId`) and ignores keys without a matching property |
+| Constructor | Passes the columns positionally, in `SELECT` order | Passes each parameter by name (`userId` or `user_id`); a missing optional parameter takes its default |
+
+For example, with `new UserEntity(string $userId, string $userName)`, `SELECT 'Alice' AS user_name, 'u001' AS user_id` gives `userId: 'Alice', userName: 'u001'` in Ray.MediaQuery, while `{"user_name": "Alice", "user_id": "u001"}` gives `userId: 'u001', userName: 'Alice'` in Ray.FakeQuery. Alias columns to the property names (`user_id AS userId`) and select them in constructor order to get the same entity from both.

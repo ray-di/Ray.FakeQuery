@@ -8,8 +8,10 @@ use Override;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Ray\Di\AbstractModule;
+use Ray\Di\Scope;
 use Ray\FakeQuery\Exception\UnknownFakeJsonException;
 use Ray\MediaQuery\Annotation\DbQuery;
+use Ray\MediaQuery\DbQueryInterceptor;
 use Ray\MediaQuery\Queries;
 use Ray\MediaQuery\ReturnEntity;
 use Ray\MediaQuery\ReturnEntityInterface;
@@ -54,6 +56,9 @@ final class FakeQueryModule extends AbstractModule
             $this->matcher->annotatedWith(DbQuery::class),
             [FakeQueryInterceptor::class],
         );
+        // Ray.Aop keeps only the last pointcut per annotation, so when a MediaQuery module is merged
+        // after this one its #[DbQuery] pointcut replaces ours; make its interceptor resolve to the fake.
+        $this->bind(DbQueryInterceptor::class)->to(FakeQueryInterceptor::class)->in(Scope::SINGLETON);
     }
 
     /** @param list<class-string> $classes */

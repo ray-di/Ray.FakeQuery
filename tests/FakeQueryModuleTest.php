@@ -167,6 +167,29 @@ final class FakeQueryModuleTest extends TestCase
         $query->list();
     }
 
+    public function testProxyStillInterceptsAfterInterceptorThrows(): void
+    {
+        $injector = new Injector(new class extends AbstractModule {
+            protected function configure(): void
+            {
+                $this->install(new FakeQueryModule(
+                    __DIR__ . '/FakeEmpty',
+                    __DIR__ . '/Fake/Query',
+                ));
+            }
+        }, __DIR__ . '/tmp');
+
+        /** @var TodoQueryInterface $query */
+        $query = $injector->getInstance(TodoQueryInterface::class);
+        try {
+            $query->list();
+            $this->fail('FakeJsonNotFoundException expected');
+        } catch (FakeJsonNotFoundException) {
+        }
+
+        $this->assertNull($query->item('1'));
+    }
+
     public function testInvalidFakeDirThrows(): void
     {
         $this->expectException(InvalidFakeDirException::class);
