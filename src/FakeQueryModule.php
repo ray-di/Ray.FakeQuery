@@ -77,8 +77,10 @@ final class FakeQueryModule extends AbstractModule
         $this->bindInterceptor(
             $this->matcher->any(),
             $this->matcher->annotatedWith(DbQuery::class),
-            [DbQueryInterceptor::class],
+            [FakeQueryInterceptor::class],
         );
+        // Ray.Aop keeps only the last merged pointcut per annotation. When MediaQuery's #[DbQuery] pointcut wins,
+        // its DbQueryInterceptor still runs, so resolve that class to the fake.
         $this->bind(DbQueryInterceptor::class)->to(FakeQueryInterceptor::class)->in(Scope::SINGLETON);
     }
 

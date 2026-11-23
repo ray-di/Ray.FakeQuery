@@ -21,7 +21,7 @@
         "ext-pdo": "*",
         "aura/sql": "^6.0",
         "phpdocumentor/reflection-docblock": "^6.0",
-        "ray/aop": "^2.19",
+        "ray/aop": "^2.20",
         "ray/di": "^2.19",
         "ray/input-query": "^1.0",
         "ray/media-query": "^1.1"
@@ -56,7 +56,7 @@
         "cs-fix": "phpcbf src tests",
         "phpstan": "phpstan analyse -c phpstan.neon",
         "psalm": "psalm --show-info=false",
-        "phpmd": "phpmd text ./phpmd.xml",
+        "phpmd": "phpmd analyze src --format text --ruleset ./phpmd.xml",
         "baseline": "phpstan analyse -c phpstan.neon --generate-baseline --allow-empty-baseline && psalm --set-baseline=psalm-baseline.xml",
         "crc": "composer-require-checker check ./composer.json",
         "metrics": "phpmetrics --report-html=build/metrics --exclude=Exception src",
