@@ -36,7 +36,7 @@ Swap modules to switch between real SQL and fake JSON:
 
 ```php
 // Production
-$this->install(new MediaQuerySqlModule($sqlDir, $interfaceDir));
+$this->install(new MediaQuerySqlModule($interfaceDir, $sqlDir));
 
 // Test / Frontend development
 $this->install(new FakeQueryModule($fakeDir, $interfaceDir));
