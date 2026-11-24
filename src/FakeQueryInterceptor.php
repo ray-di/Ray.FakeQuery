@@ -35,6 +35,7 @@ use function trim;
 use const JSON_THROW_ON_ERROR;
 
 /**
+ * @internal
  * @psalm-import-type JsonRow from Types
  * @psalm-import-type JsonRowList from Types
  */

@@ -9,6 +9,7 @@ use Ray\FakeQuery\Exception\InvalidFakeDirException;
 use function is_dir;
 use function is_readable;
 
+/** @internal */
 final class FakeQueryConfig
 {
     public function __construct(

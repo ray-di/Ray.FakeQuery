@@ -23,6 +23,7 @@ use function is_array;
 use function method_exists;
 
 /**
+ * @internal
  * @psalm-import-type JsonRow from Types
  * @psalm-import-type JsonRowList from Types
  */
