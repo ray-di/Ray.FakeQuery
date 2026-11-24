@@ -77,8 +77,8 @@ Ray.FakeQuery matches JSON keys to the entity by name, while Ray.MediaQuery hydr
 | Entity | Ray.MediaQuery | Ray.FakeQuery |
 |---|---|---|
 | No constructor | Sets properties named exactly like the columns: `user_id` leaves `$userId` empty and creates a dynamic `$user_id` property | Converts each key to camelCase (`user_id` → `$userId`) and ignores keys without a matching property |
-| Constructor | Passes the columns positionally, in `SELECT` order | Passes each parameter by name (`userId` or `user_id`); a missing optional parameter takes its default, a missing nullable one gets `null`, any other throws `MissingFakeFieldException` |
-| `#[DbQuery(factory: ...)]` | Calls the static `factory()` statically, otherwise on an instance from the injector, passing the columns positionally | Same, passing the fixture fields positionally in object order |
+| Constructor | Passes the columns positionally, in `SELECT` order | Passes each parameter by name (`userId` or `user_id`); a missing optional parameter takes its default, a missing nullable one gets `null`, any other throws `MissingFakeFieldException`; a variadic parameter receives the elements of its array field |
+| `#[DbQuery(factory: ...)]` | Calls the static `factory()` statically, otherwise on an instance from the injector, passing the columns positionally; an undefined factory falls back to the entity | Same dispatch, passing the fixture fields positionally in object order; an undefined factory throws `InvalidFactoryException` |
 
 For example, with `new UserEntity(string $userId, string $userName)`, `SELECT 'Alice' AS user_name, 'u001' AS user_id` gives `userId: 'Alice', userName: 'u001'` in Ray.MediaQuery, while `{"user_name": "Alice", "user_id": "u001"}` gives `userId: 'u001', userName: 'Alice'` in Ray.FakeQuery. Alias columns to the property names (`user_id AS userId`) and select them in constructor order to get the same entity from both.
 

@@ -6,6 +6,7 @@ namespace Ray\FakeQuery\EdgeQuery;
 
 use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Entity\NoteEntity;
+use Ray\FakeQuery\Entity\TaggedEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
 use Ray\FakeQuery\Entity\UserEntity;
 use Ray\FakeQuery\Factory\InjectedTodoFactory;
@@ -25,6 +26,23 @@ interface EdgeQueryInterface
 
     #[DbQuery('null_item')]
     public function nullItemForNonNullable(): TodoEntity;
+
+    /** @return TodoEntity|array<string, mixed>|null */
+    #[DbQuery('missing_union_item')]
+    public function missingNullableUnionItem(): TodoEntity|array|null;
+
+    /** @return TodoEntity|array<string, mixed> */
+    #[DbQuery('missing_union_item')]
+    public function missingUnionItem(): TodoEntity|array;
+
+    #[DbQuery('numeric_key_item')]
+    public function numericKeyItem(): TodoEntity;
+
+    #[DbQuery('untagged_item')]
+    public function untaggedItem(): TaggedEntity;
+
+    #[DbQuery('tagged_item')]
+    public function taggedItem(): TaggedEntity;
 
     #[DbQuery('broken_item')]
     public function brokenItem(): TodoEntity|null;

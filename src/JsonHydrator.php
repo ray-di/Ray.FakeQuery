@@ -135,7 +135,7 @@ final class JsonHydrator
         $obj = $refClass->newInstanceWithoutConstructor();
         /** @psalm-suppress MixedAssignment */
         foreach ($row as $key => $value) {
-            $propName = StringCase::camel($key);
+            $propName = StringCase::camel((string) $key);
             if ($refClass->hasProperty($propName)) {
                 $refClass->getProperty($propName)->setValue($obj, $value);
             }
@@ -156,6 +156,11 @@ final class JsonHydrator
         $callee = $refClass->getName() . '::__construct()';
         $args = [];
         foreach ($constructor->getParameters() as $param) {
+            if ($param->isVariadic()) {
+                $args = [...$args, ...$this->variadicArguments($param, $row)];
+                continue;
+            }
+
             /** @psalm-suppress MixedAssignment */
             $args[] = $this->resolveArgument($param, $row, $callee);
         }
@@ -176,7 +181,7 @@ final class JsonHydrator
             return $row[$snake];
         }
 
-        if ($param->isOptional()) {
+        if ($param->isDefaultValueAvailable()) {
             return $param->getDefaultValue();
         }
 
@@ -185,5 +190,21 @@ final class JsonHydrator
         }
 
         throw new MissingFakeFieldException($callee, $name, "\"{$name}\" or \"{$snake}\" field");
+    }
+
+    /**
+     * @param JsonRow $row
+     *
+     * @return list<mixed>
+     */
+    private function variadicArguments(ReflectionParameter $param, array $row): array
+    {
+        foreach ([$param->getName(), StringCase::snake($param->getName())] as $field) {
+            if (array_key_exists($field, $row)) {
+                return is_array($row[$field]) ? array_values($row[$field]) : [$row[$field]];
+            }
+        }
+
+        return [];
     }
 }

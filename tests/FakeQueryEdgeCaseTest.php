@@ -11,6 +11,7 @@ use Ray\FakeQuery\EdgeQuery\EdgeQueryInterface;
 use Ray\FakeQuery\Entity\FactoryTodoEntity;
 use Ray\FakeQuery\Entity\NoteEntity;
 use Ray\FakeQuery\Entity\TodoEntity;
+use Ray\FakeQuery\Exception\FakeJsonNotFoundException;
 use Ray\FakeQuery\Exception\InvalidFactoryException;
 use Ray\FakeQuery\Exception\InvalidFakeJsonException;
 use Ray\FakeQuery\Exception\MissingFakeFieldException;
@@ -46,6 +47,33 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->expectExceptionMessageMatches('/null_item\.json: expected a JSON object$/');
 
         $this->query->nullItemForNonNullable();
+    }
+
+    public function testMissingFixtureForNullableUnionReturnsNull(): void
+    {
+        $this->assertNull($this->query->missingNullableUnionItem());
+    }
+
+    public function testMissingFixtureForNonNullableUnionThrows(): void
+    {
+        $this->expectException(FakeJsonNotFoundException::class);
+
+        $this->query->missingUnionItem();
+    }
+
+    public function testNumericJsonKeysAreIgnoredForPropertyEntities(): void
+    {
+        $this->assertSame('t001', $this->query->numericKeyItem()->todoId);
+    }
+
+    public function testMissingVariadicFieldPassesNoArguments(): void
+    {
+        $this->assertSame([], $this->query->untaggedItem()->tags);
+    }
+
+    public function testVariadicFieldIsSpread(): void
+    {
+        $this->assertSame(['urgent', 'home'], $this->query->taggedItem()->tags);
     }
 
     public function testBrokenJsonNamesTheFile(): void

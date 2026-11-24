@@ -79,7 +79,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
         $content = file_get_contents($jsonFile);
         if ($content === false) {
-            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir); // @codeCoverageIgnore — file_exists passed
+            throw new FakeJsonNotFoundException($dbQuery->id . $ext, $this->config->fakeDir); // @codeCoverageIgnore
         }
 
         $data = $isRow
@@ -155,22 +155,6 @@ final class FakeQueryInterceptor implements MethodInterceptor
 
     private function isNullable(ReflectionType|null $returnType): bool
     {
-        if ($returnType instanceof ReflectionNamedType) {
-            return $returnType->allowsNull();
-        }
-
-        // Ray.Di normalizes `Entity|null` to `?Entity` (ReflectionNamedType),
-        // so ReflectionUnionType is unreachable in practice. Verified via xtrace.
-        if (! ($returnType instanceof ReflectionUnionType)) { // @codeCoverageIgnore
-            return false; // @codeCoverageIgnore
-        }
-
-        foreach ($returnType->getTypes() as $type) { // @codeCoverageIgnore
-            if ($type instanceof ReflectionNamedType && $type->getName() === 'null') { // @codeCoverageIgnore
-                return true; // @codeCoverageIgnore
-            }
-        }
-
-        return false; // @codeCoverageIgnore
+        return $returnType !== null && $returnType->allowsNull();
     }
 }

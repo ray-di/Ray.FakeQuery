@@ -12,7 +12,7 @@
         "php": "^8.2",
         "phpdocumentor/reflection-docblock": "^5.3 || ^6.0",
         "ray/aop": "^2.20",
-        "ray/di": "^2.18",
+        "ray/di": "^2.19",
         "ray/media-query": "^1.1"
     },
     "require-dev": {
