@@ -89,7 +89,7 @@ For example, with `new UserEntity(string $userId, string $userName)`, `SELECT 'A
 | `InvalidFakeDirException` | The fake directory does not exist or is not readable |
 | `FakeJsonNotFoundException` | The fixture for a non-nullable row or a row list does not exist |
 | `UnknownFakeJsonException` | A fixture file matches no `#[DbQuery]` id (on module install) |
-| `InvalidFakeJsonException` | A fixture is not valid JSON, or a row is not a JSON object (`null` is allowed for a `.json` row); the message names the file and the JSONL line |
+| `InvalidFakeJsonException` | A fixture is not valid JSON, or a row is not a JSON object (`null` is allowed for a nullable row); the message names the file and the JSONL line |
 | `MissingFakeFieldException` | A required constructor or factory parameter has no field in the row |
 | `InvalidFactoryException` | The `factory` class or its `factory()` method does not exist or is not public |
 | `UnsupportedQueryException` | The query needs a database result that a fixture cannot provide (see below) |

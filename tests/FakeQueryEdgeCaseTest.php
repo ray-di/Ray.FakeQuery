@@ -40,6 +40,14 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->assertNull($this->query->nullItem());
     }
 
+    public function testNullJsonForNonNullableRowThrows(): void
+    {
+        $this->expectException(InvalidFakeJsonException::class);
+        $this->expectExceptionMessageMatches('/null_item\.json: expected a JSON object$/');
+
+        $this->query->nullItemForNonNullable();
+    }
+
     public function testBrokenJsonNamesTheFile(): void
     {
         $this->expectException(InvalidFakeJsonException::class);

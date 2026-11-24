@@ -23,6 +23,9 @@ interface EdgeQueryInterface
     #[DbQuery('null_item')]
     public function nullItem(): TodoEntity|null;
 
+    #[DbQuery('null_item')]
+    public function nullItemForNonNullable(): TodoEntity;
+
     #[DbQuery('broken_item')]
     public function brokenItem(): TodoEntity|null;
 

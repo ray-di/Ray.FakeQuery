@@ -83,7 +83,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
         }
 
         $data = $isRow
-            ? $this->decodeRow($content, $jsonFile, true)
+            ? $this->decodeRow($content, $jsonFile, $this->isNullable($returnType))
             : $this->parseJsonl($content, $jsonFile);
 
         $entityClass = ($this->returnEntity)($method);
