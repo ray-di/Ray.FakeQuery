@@ -106,7 +106,14 @@ final class FakeQueryInterceptor implements MethodInterceptor
     /** @param class-string $class */
     private function returns(ReflectionType|null $returnType, string $class): bool
     {
-        return $returnType instanceof ReflectionNamedType && is_a($returnType->getName(), $class, true);
+        $types = $returnType instanceof ReflectionUnionType ? $returnType->getTypes() : [$returnType];
+        foreach ($types as $type) {
+            if ($type instanceof ReflectionNamedType && is_a($type->getName(), $class, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return ($nullable is true ? JsonRow|null : JsonRow) */

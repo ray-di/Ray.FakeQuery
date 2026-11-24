@@ -64,6 +64,9 @@ interface EdgeQueryInterface
     #[DbQuery('todo_insert')]
     public function insert(): InsertedRow;
 
+    #[DbQuery('todo_write')]
+    public function write(): AffectedRows|InsertedRow;
+
     #[DbQuery('factory_item', factory: StaticTodoFactory::class)]
     public function staticFactoryItem(): FactoryTodoEntity;
 

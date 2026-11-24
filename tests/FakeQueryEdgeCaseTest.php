@@ -138,6 +138,14 @@ final class FakeQueryEdgeCaseTest extends TestCase
         $this->query->insert();
     }
 
+    public function testUnionOfResultTypesIsUnsupported(): void
+    {
+        $this->expectException(UnsupportedQueryException::class);
+        $this->expectExceptionMessage("PostQueryInterface results: #[DbQuery('todo_write')] write()");
+
+        $this->query->write();
+    }
+
     public function testStaticFactoryReceivesFieldsInObjectOrder(): void
     {
         $todo = $this->query->staticFactoryItem();
