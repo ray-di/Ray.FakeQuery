@@ -4,64 +4,111 @@ declare(strict_types=1);
 
 namespace Ray\FakeQuery;
 
+use Closure;
+use Ray\Di\InjectorInterface;
+use Ray\FakeQuery\Exception\InvalidFactoryException;
+use Ray\FakeQuery\Exception\MissingFakeFieldException;
+use Ray\MediaQuery\Annotation\Qualifier\FactoryMethod;
 use Ray\MediaQuery\StringCase;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionParameter;
 
 use function array_key_exists;
 use function array_map;
+use function array_values;
 use function assert;
+use function class_exists;
 use function is_array;
 use function method_exists;
 
-/** @psalm-import-type JsonRow from Types */
+/**
+ * @psalm-import-type JsonRow from Types
+ * @psalm-import-type JsonRowList from Types
+ */
 final class JsonHydrator
 {
-    /** @param class-string|null $entityClass */
-    public function hydrate(mixed $data, string|null $entityClass, bool $isRow): mixed
-    {
-        if ($isRow) {
-            return $this->hydrateRow($data, $entityClass);
-        }
-
-        return $this->hydrateRowList($data, $entityClass);
+    public function __construct(
+        private readonly InjectorInterface $injector,
+        #[FactoryMethod]
+        private readonly string $factoryMethod = 'factory',
+    ) {
     }
 
-    /** @param class-string|null $entityClass */
-    private function hydrateRow(mixed $data, string|null $entityClass): mixed
+    /**
+     * @param class-string|null $entityClass
+     * @param string            $factoryClass `#[DbQuery(factory: ...)]`; empty when none is configured
+     */
+    public function hydrate(mixed $data, string|null $entityClass, bool $isRow, string $factoryClass = ''): mixed
     {
         if ($data === null) {
-            return null; // @codeCoverageIgnore json_decode returns null only for "null" content
-        }
-
-        if ($entityClass === null) {
-            return $data;
+            return null;
         }
 
         assert(is_array($data));
-        /** @var JsonRow $data */
+        $factory = $this->factoryHydrator($factoryClass);
+        if ($isRow) {
+            /** @var JsonRow $data */
+            return $this->hydrateRow($data, $factory, $entityClass);
+        }
 
-        return $this->hydrateOne($data, $entityClass);
+        /** @var JsonRowList $data */
+        return array_map(fn (array $row): mixed => $this->hydrateRow($row, $factory, $entityClass), $data);
     }
 
-    /** @param class-string|null $entityClass */
-    private function hydrateRowList(mixed $data, string|null $entityClass): mixed
+    /**
+     * @param JsonRow                        $row
+     * @param (Closure(JsonRow): mixed)|null $factory
+     * @param class-string|null              $entityClass
+     */
+    private function hydrateRow(array $row, Closure|null $factory, string|null $entityClass): mixed
     {
-        if ($entityClass === null) {
-            return $data; // @codeCoverageIgnore ReturnEntity always resolves entity for @return array<Entity>
+        if ($factory !== null) {
+            return $factory($row);
         }
 
-        assert(is_array($data));
+        if ($entityClass === null) {
+            return $row;
+        }
 
-        return array_map(
-            function (mixed $row) use ($entityClass): object {
-                assert(is_array($row));
-                /** @var JsonRow $row */
+        return $this->hydrateOne($row, $entityClass);
+    }
 
-                return $this->hydrateOne($row, $entityClass);
-            },
-            $data,
-        );
+    /**
+     * A static factory method is called statically, any other on an instance from the injector, as
+     * Ray.MediaQuery does; fixture fields are passed positionally in object order, like PDO::FETCH_FUNC.
+     *
+     * @return (Closure(JsonRow): mixed)|null
+     */
+    private function factoryHydrator(string $factoryClass): Closure|null
+    {
+        if ($factoryClass === '') {
+            return null;
+        }
+
+        $method = $this->factoryMethod;
+        if (! class_exists($factoryClass) || ! method_exists($factoryClass, $method)) {
+            throw new InvalidFactoryException($factoryClass, $method);
+        }
+
+        $reflection = new ReflectionMethod($factoryClass, $method);
+        if (! $reflection->isPublic()) {
+            throw new InvalidFactoryException($factoryClass, $method);
+        }
+
+        $factory = $reflection->isStatic() ? null : $this->injector->getInstance($factoryClass);
+        $callee = "{$factoryClass}::{$method}()";
+
+        return static function (array $row) use ($reflection, $factory, $callee): mixed {
+            $args = array_values($row);
+            foreach ($reflection->getParameters() as $position => $param) {
+                if (! array_key_exists($position, $args) && ! $param->isOptional()) {
+                    throw new MissingFakeFieldException($callee, $param->getName(), 'field at position ' . ($position + 1));
+                }
+            }
+
+            return $reflection->invokeArgs($factory, $args);
+        };
     }
 
     /**
@@ -106,17 +153,18 @@ final class JsonHydrator
         $constructor = $refClass->getConstructor();
         assert($constructor !== null);
 
+        $callee = $refClass->getName() . '::__construct()';
         $args = [];
         foreach ($constructor->getParameters() as $param) {
             /** @psalm-suppress MixedAssignment */
-            $args[] = $this->resolveArgument($param, $row);
+            $args[] = $this->resolveArgument($param, $row, $callee);
         }
 
         return $refClass->newInstance(...$args);
     }
 
     /** @param JsonRow $row */
-    private function resolveArgument(ReflectionParameter $param, array $row): mixed
+    private function resolveArgument(ReflectionParameter $param, array $row, string $callee): mixed
     {
         $name = $param->getName();
         if (array_key_exists($name, $row)) {
@@ -132,6 +180,10 @@ final class JsonHydrator
             return $param->getDefaultValue();
         }
 
-        return null; // @codeCoverageIgnore all constructor params should match JSON keys or be optional
+        if ($param->allowsNull()) {
+            return null;
+        }
+
+        throw new MissingFakeFieldException($callee, $name, "\"{$name}\" or \"{$snake}\" field");
     }
 }
