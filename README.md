@@ -10,8 +10,10 @@ Ray.FakeQuery    JSON files → hydration    → Entity (same interface)
 ## Installation
 
 ```bash
-composer require ray/fake-query 1.x-dev --dev
+composer require --dev ray/fake-query
 ```
+
+Requires PHP 8.2 or later and Ray.MediaQuery 1.1 or later.
 
 ## Usage
 
