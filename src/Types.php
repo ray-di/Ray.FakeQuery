@@ -7,9 +7,9 @@ namespace Ray\FakeQuery;
 /**
  * Ray.FakeQuery Domain Types for Psalm
  *
- * JSON Data Types
+ * JSON Data Types; numeric object keys such as "0" decode to int keys, so JsonRow keys are array-key.
  *
- * @psalm-type JsonRow = array<string, mixed>
+ * @psalm-type JsonRow = array<array-key, mixed>
  * @psalm-type JsonRowList = list<JsonRow>
  * @psalm-type DbQueryIdSet = array<string, true>
  */
