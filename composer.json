@@ -1,6 +1,6 @@
 {
     "name": "ray/fake-query",
-    "description": "",
+    "description": "Fakes Ray.MediaQuery query interfaces by returning JSON fixture data instead of executing SQL",
     "license": "MIT",
     "authors": [
         {

@@ -3,6 +3,8 @@
 /.gitignore export-ignore
 /.planning export-ignore
 /CLAUDE.md export-ignore
+/CHANGELOG.md export-ignore
+/DESIGN.md export-ignore
 /codecov.yml export-ignore
 /composer-require-checker.json export-ignore
 /phpcs.xml export-ignore

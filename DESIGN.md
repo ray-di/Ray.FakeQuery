@@ -8,7 +8,7 @@ When `FakeQueryModule` is installed instead of `MediaQuerySqlModule`, all `#[DbQ
 
 ## Reference
 
-- Ray.MediaQuery source: `/Users/akihito/git/Ray.MediaQuery`
+- Ray.MediaQuery source: `https://github.com/ray-di/Ray.MediaQuery`
 - BEAR.FakeJson (same concept for BEAR.Sunday resources): `https://github.com/bearsunday/BEAR.FakeJson`
 - README: `README.md` in this repo
 
@@ -32,10 +32,8 @@ When `FakeQueryModule` is installed instead of `MediaQuerySqlModule`, all `#[DbQ
 src/
 ├── FakeQueryModule.php
 ├── FakeQueryConfig.php
-├── Interceptor/
-│   └── FakeQueryInterceptor.php
-└── Hydrator/
-    └── FakeJsonHydrator.php
+├── FakeQueryInterceptor.php
+└── JsonHydrator.php
 tests/
 ├── FakeQueryModuleTest.php
 └── Fake/
@@ -101,7 +99,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 {
     public function __construct(
         private readonly FakeQueryConfig $config,
-        private readonly FakeJsonHydrator $hydrator,
+        private readonly JsonHydrator $hydrator,
     ) {}
 
     public function invoke(MethodInvocation $invocation): mixed
@@ -130,7 +128,7 @@ final class FakeQueryInterceptor implements MethodInterceptor
 }
 ```
 
-### FakeJsonHydrator
+### JsonHydrator
 
 Hydrates JSON array to the declared return type:
 
@@ -139,7 +137,7 @@ Hydrates JSON array to the declared return type:
 - `array` → return raw array
 - snake_case keys → camelCase properties (same as Ray.MediaQuery)
 
-Look at how Ray.MediaQuery handles hydration (`/Users/akihito/git/Ray.MediaQuery/src/`) and reuse or replicate the same logic.
+Look at how Ray.MediaQuery handles hydration (`src/` in `https://github.com/ray-di/Ray.MediaQuery`) and reuse or replicate the same logic.
 
 ## JSON File Conventions
 
